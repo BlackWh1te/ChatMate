@@ -22,6 +22,10 @@ A Chrome extension that helps you write better chat responses using your local O
   - `Ctrl+Shift+O` (or `Cmd+Shift+O` on Mac) - Open extension
   - `Ctrl+Shift+G` (or `Cmd+Shift+G` on Mac) - Generate response for selected text
 
+### Context-Aware Responses
+- **Page Context** - Toggle "Include page context" in the popup to send the current webpage's content as additional context to the AI
+- **Reference URLs** - Add FAQ pages, documentation, or knowledge-base URLs in Settings. Their content is fetched and included automatically with every prompt (up to 2000 chars per URL)
+
 ### Customization
 - **Auto-detect models** - Automatically fetch available models from your Ollama instance
 - **Temperature control** - Adjust creativity (0.0 = focused, 2.0 = very creative)
@@ -116,6 +120,10 @@ Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 **Paste into chats** - The Paste button works on Facebook, LinkedIn, WhatsApp Web, Slack, Discord, and other sites. If it doesn't work on a specific site, Copy and manual paste is the fallback.
 
 **Stop generation** - Click the Stop button during generation to cancel and save tokens.
+
+**Use page context** - When replying to something on a webpage (forum, support ticket, article comments), enable "Include page context" so the AI knows what the discussion is about.
+
+**Reference URLs** - Add your company's FAQ or product docs in Settings. The AI will use them as background knowledge when writing responses, up to 2000 characters per URL.
 
 ## Troubleshooting
 

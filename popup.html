@@ -361,6 +361,19 @@
     </div>
 
     <div class="card">
+      <div class="toggle-row" style="margin-bottom: 10px;">
+        <label style="margin: 0; font-size: 12px;">Include page context</label>
+        <label class="switch" style="margin: 0;">
+          <input type="checkbox" id="context-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p style="font-size: 11px; color: var(--secondary-text); margin: 0; line-height: 1.4;">
+        When on, ChatMate reads the current page content to give more accurate responses. Great for support agents referencing docs or FAQs.
+      </p>
+    </div>
+
+    <div class="card">
       <label for="input-text">Selected text or type your message</label>
       <textarea id="input-text" placeholder="Select text on a page or type here..."></textarea>
       <button class="btn btn-block" id="generate-btn" style="margin-top: 10px;">

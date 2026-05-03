@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const success = document.getElementById('success');
   const error = document.getElementById('error');
 
+  // Reference URLs
+  const refUrlInput = document.getElementById('ref-url-input');
+  const refUrlLabelInput = document.getElementById('ref-url-label');
+  const addRefUrlBtn = document.getElementById('add-ref-url-btn');
+  const refUrlsList = document.getElementById('ref-urls-list');
+
   // Templates
   const templateNameInput = document.getElementById('template-name');
   const templatePromptInput = document.getElementById('template-prompt');
@@ -55,7 +61,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load current settings
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
-    'streamingEnabled', 'variantCount', 'temperature', 'maxTokens'
+    'streamingEnabled', 'variantCount', 'temperature', 'maxTokens',
+    'referenceUrls'
   ], function(result) {
     ollamaUrlInput.value = result.ollamaUrl || '';
     streamingToggle.checked = result.streamingEnabled !== false;
@@ -66,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Populate model dropdown
     populateModelSelect(result.modelName || 'llama2', result.models || []);
+
+    // Display reference URLs
+    displayRefUrls(result.referenceUrls || []);
 
     // Display templates
     displayTemplates(result.templates || []);
@@ -154,6 +164,69 @@ document.addEventListener('DOMContentLoaded', function() {
       showSuccess('Settings saved!');
     });
   });
+
+  // Reference URLs
+  addRefUrlBtn.addEventListener('click', function() {
+    const url = refUrlInput.value.trim();
+    const label = refUrlLabelInput.value.trim();
+
+    if (!url) {
+      showError('Please enter a URL');
+      return;
+    }
+    if (!/^https?:\/\//.test(url)) {
+      showError('URL must start with http:// or https://');
+      return;
+    }
+
+    chrome.storage.local.get(['referenceUrls'], function(result) {
+      const urls = result.referenceUrls || [];
+      urls.push({ url, label: label || url, id: Date.now() });
+      chrome.storage.local.set({ referenceUrls: urls }, function() {
+        displayRefUrls(urls);
+        refUrlInput.value = '';
+        refUrlLabelInput.value = '';
+        showSuccess('Reference URL added!');
+      });
+    });
+  });
+
+  function displayRefUrls(urls) {
+    if (!urls || urls.length === 0) {
+      refUrlsList.innerHTML = '<div class="empty-state">No reference URLs yet</div>';
+      return;
+    }
+
+    refUrlsList.innerHTML = urls.map(item => `
+      <div class="template-item" data-id="${item.id}">
+        <div class="template-info">
+          <div class="template-name">${escapeHtml(item.label)}</div>
+          <div class="template-prompt">${escapeHtml(item.url)}</div>
+        </div>
+        <div class="template-actions">
+          <button class="btn btn-danger small-btn delete-ref-url" data-id="${item.id}">Delete</button>
+        </div>
+      </div>
+    `).join('');
+
+    refUrlsList.querySelectorAll('.delete-ref-url').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const id = parseInt(this.dataset.id);
+        deleteRefUrl(id);
+      });
+    });
+  }
+
+  function deleteRefUrl(id) {
+    if (!confirm('Delete this reference URL?')) return;
+
+    chrome.storage.local.get(['referenceUrls'], function(result) {
+      const urls = (result.referenceUrls || []).filter(u => u.id !== id);
+      chrome.storage.local.set({ referenceUrls: urls }, function() {
+        displayRefUrls(urls);
+      });
+    });
+  }
 
   // Templates
   addTemplateBtn.addEventListener('click', function() {

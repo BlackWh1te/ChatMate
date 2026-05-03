@@ -406,6 +406,22 @@
       4. For remote access: <code>ngrok http 11434</code>
     </div>
 
+    <!-- Reference URLs -->
+    <div class="card">
+      <div class="card-title">Reference URLs</div>
+      <div style="font-size: 12px; color: var(--secondary-text); margin-bottom: 10px;">
+        Add URLs to FAQ pages, docs, or knowledge bases. Their text will be fetched and included as context when generating responses.
+      </div>
+
+      <div class="row" style="margin-bottom: 8px;">
+        <input type="text" id="ref-url-input" placeholder="https://example.com/faq" style="flex: 3;">
+        <input type="text" id="ref-url-label" placeholder="Label (optional)" style="flex: 2;">
+        <button class="btn btn-success" id="add-ref-url-btn" style="flex: 1; font-size: 12px;">+ Add</button>
+      </div>
+
+      <div id="ref-urls-list" class="templates-list"></div>
+    </div>
+
     <!-- Response Templates -->
     <div class="card">
       <div class="card-title">Response Templates</div>

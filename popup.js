@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const pasteBtn = document.getElementById('paste-btn');
   const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
+  const contextToggle = document.getElementById('context-toggle');
   const statusBadge = document.getElementById('status-badge');
   const modelInfo = document.getElementById('model-info');
   const tokenInfo = document.getElementById('token-info');
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let activeVariant = 0;
   let isGenerating = false;
   let abortController = null;
+  let currentPageContext = null;
 
   // Theme handling
   function applyTheme(theme) {
@@ -38,8 +40,11 @@ document.addEventListener('DOMContentLoaded', function() {
     themeToggle.title = theme === 'dark' ? 'Toggle light mode' : 'Toggle dark mode';
   }
 
-  chrome.storage.local.get(['theme'], function(result) {
+  chrome.storage.local.get(['theme', 'contextEnabled'], function(result) {
     applyTheme(result.theme || 'light');
+    if (contextToggle) {
+      contextToggle.checked = result.contextEnabled !== false;
+    }
   });
 
   themeToggle.addEventListener('click', function() {
@@ -48,6 +53,12 @@ document.addEventListener('DOMContentLoaded', function() {
     applyTheme(newTheme);
     chrome.storage.local.set({theme: newTheme});
   });
+
+  if (contextToggle) {
+    contextToggle.addEventListener('change', function() {
+      chrome.storage.local.set({contextEnabled: contextToggle.checked});
+    });
+  }
 
   // Connection status
   async function checkConnection() {
@@ -181,6 +192,78 @@ document.addEventListener('DOMContentLoaded', function() {
     await generateResponses(text, currentTemplateId);
   });
 
+  async function fetchPageContext() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs || !tabs[0]) { resolve(null); return; }
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'getPageContext', maxLength: 3000}, function(response) {
+          if (chrome.runtime.lastError || !response || !response.context) {
+            resolve(null);
+          } else {
+            resolve(response.context);
+          }
+        });
+      });
+    });
+  }
+
+  async function fetchReferenceUrls() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['referenceUrls'], function(result) {
+        const urls = result.referenceUrls || [];
+        if (urls.length === 0) { resolve([]); return; }
+        const fetchPromises = urls.map(async (item) => {
+          try {
+            const res = await fetch(item.url, { signal: AbortSignal.timeout(8000) });
+            if (!res.ok) return null;
+            const html = await res.text();
+            const text = htmlToText(html);
+            return { label: item.label || item.url, text: truncate(text, 2000) };
+          } catch (e) {
+            return null;
+          }
+        });
+        Promise.all(fetchPromises).then(results => resolve(results.filter(Boolean)));
+      });
+    });
+  }
+
+  function htmlToText(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    // Remove script/style/nav/footer tags
+    const removeTags = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript'];
+    removeTags.forEach(tag => {
+      tmp.querySelectorAll(tag).forEach(el => el.remove());
+    });
+    let text = tmp.innerText || tmp.textContent || '';
+    return text
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\t+/g, ' ')
+      .replace(/ {2,}/g, ' ')
+      .trim();
+  }
+
+  function truncate(text, maxLen) {
+    if (!text || text.length <= maxLen) return text;
+    return text.substring(0, maxLen) + '... [truncated]';
+  }
+
+  function buildFullPrompt(systemPrompt, userInput, pageContext, refContents) {
+    let prompt = systemPrompt;
+    if (refContents && refContents.length > 0) {
+      prompt += '\n\nReference materials:';
+      refContents.forEach((ref, i) => {
+        prompt += `\n\n[${i + 1}] ${ref.label}:\n---\n${ref.text}\n---`;
+      });
+    }
+    if (pageContext && pageContext.text) {
+      prompt += `\n\nHere is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---`;
+    }
+    prompt += `\n\nUser message:\n${userInput}\n\nPlease write a response.`;
+    return prompt;
+  }
+
   async function generateResponses(text, templateId) {
     isGenerating = true;
     abortController = new AbortController();
@@ -197,6 +280,15 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error('Please configure Ollama URL in Settings');
       }
 
+      // Fetch page context if enabled
+      currentPageContext = null;
+      if (contextToggle && contextToggle.checked) {
+        currentPageContext = await fetchPageContext();
+      }
+
+      // Fetch reference URLs content
+      const refContents = await fetchReferenceUrls();
+
       // Get template prompt
       let systemPrompt = 'Help me write a response to this message. Keep it natural and conversational';
       if (templateId) {
@@ -212,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
       for (let i = 0; i < variantCount; i++) {
         // Vary temperature slightly for diversity when generating multiple variants
         const temperature = variantCount > 1 ? baseTemp + (i * 0.15) : baseTemp;
-        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount));
+        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount, currentPageContext, refContents));
       }
 
       const results = await Promise.allSettled(promises);
@@ -231,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (hasAnySuccess) {
         responsesContainer.classList.add('show');
         setActiveVariant(0);
-        updateModelInfo(settings);
+        updateModelInfo(settings, currentPageContext);
 
         // Save to history (save first successful response)
         const firstSuccess = results.find(r => r.status === 'fulfilled' && r.value);
@@ -256,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loading.classList.remove('show');
   }
 
-  async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total) {
+  async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total, pageContext, refContents) {
     if (total > 1) {
       loadingText.textContent = `Generating option ${index + 1} of ${total}...`;
     } else {
@@ -266,10 +358,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const url = `${settings.ollamaUrl}/api/generate`;
 
     const maxTokens = settings.maxTokens || 500;
+    const fullPrompt = buildFullPrompt(systemPrompt, prompt, pageContext, refContents);
 
     if (settings.streamingEnabled && total === 1) {
       // Streaming for single response
-      return await streamResponse(url, settings.modelName, systemPrompt, prompt, index, temperature, maxTokens);
+      return await streamResponse(url, settings.modelName, fullPrompt, index, temperature, maxTokens);
     } else {
       // Non-streaming for multiple variants
       const res = await fetch(url, {
@@ -277,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: settings.modelName,
-          prompt: `${systemPrompt}:\n\n${prompt}`,
+          prompt: fullPrompt,
           stream: false,
           options: {
             temperature: temperature,
@@ -293,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  async function streamResponse(url, model, systemPrompt, prompt, index, temperature, maxTokens) {
+  async function streamResponse(url, model, fullPrompt, index, temperature, maxTokens) {
     responsesContainer.classList.add('show');
     responseCards[index].classList.add('active');
     loading.classList.remove('show');
@@ -303,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: model,
-        prompt: `${systemPrompt}:\n\n${prompt}`,
+        prompt: fullPrompt,
         stream: true,
         options: {
           temperature: temperature,
@@ -399,10 +492,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2500);
   }
 
-  function updateModelInfo(settings) {
+  function updateModelInfo(settings, pageContext) {
     modelInfo.textContent = `Model: ${settings.modelName}`;
     tokenInfo.textContent = '';
-    footerInfo.textContent = `${settings.modelName} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
+    let footerText = `${settings.modelName} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
+    if (pageContext && pageContext.title) {
+      footerText += ` • Context: ${pageContext.title}`;
+    }
+    footerInfo.textContent = footerText;
   }
 
   // Helpers

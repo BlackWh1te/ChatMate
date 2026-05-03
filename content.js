@@ -1,6 +1,5 @@
-// Content script for text selection and paste support
+// Content script for text selection, paste support, and context extraction
 
-// Get selected text
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'getSelectedText') {
     const selectedText = window.getSelection().toString().trim();
@@ -13,39 +12,94 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     sendResponse({success: inserted});
     return true;
   }
+
+  if (request.action === 'getPageContext') {
+    const context = extractPageContext(request.maxLength || 3000);
+    sendResponse({context: context});
+    return true;
+  }
 });
+
+function extractPageContext(maxLength) {
+  // Try to find the main content area
+  const selectors = [
+    'article', 'main', '[role="main"]',
+    '.content', '.post-content', '.entry-content',
+    '.message', '.chat-message', '.conversation',
+    '#content', '.article-body', '.story-body'
+  ];
+
+  let content = '';
+
+  // Try main content selectors first
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el) {
+      content = cleanText(el.innerText);
+      if (content.length > 200) break;
+    }
+  }
+
+  // Fallback: get body text minus nav/footer/scripts
+  if (!content || content.length < 200) {
+    const clone = document.body.cloneNode(true);
+
+    // Remove non-content elements
+    const removeSelectors = [
+      'script', 'style', 'nav', 'header', 'footer',
+      'aside', '.sidebar', '.menu', '.navigation',
+      '[role="navigation"]', '[role="banner"]', '[role="complementary"]',
+      '.ads', '.advertisement', '.cookie-banner', '.modal'
+    ];
+
+    for (const sel of removeSelectors) {
+      const els = clone.querySelectorAll(sel);
+      els.forEach(e => e.remove());
+    }
+
+    content = cleanText(clone.innerText);
+  }
+
+  // Truncate if too long
+  if (content.length > maxLength) {
+    content = content.substring(0, maxLength) + '... [truncated]';
+  }
+
+  return {
+    url: window.location.href,
+    title: document.title,
+    text: content,
+    length: content.length
+  };
+}
+
+function cleanText(text) {
+  return text
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\t+/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
 
 function insertTextIntoActiveElement(text) {
   const activeElement = document.activeElement;
 
-  // Try common chat input selectors for major sites
   const selectors = [
-    // Generic contenteditable
     '[contenteditable="true"]:focus',
     '[contenteditable=""]:focus',
-    // Facebook
     '[role="textbox"]',
-    // WhatsApp Web
     'div[data-testid="conversation-compose-box-input"]',
     'div[data-tab="1"]',
-    // Slack
     '[data-qa="message_input"]',
-    // Discord
     'div[role="textbox"]',
-    // LinkedIn
     'div.msg-form__contenteditable',
-    // Twitter/X
     '[data-testid="tweetTextarea_0"]',
-    // Telegram Web
     '.composer_rich_textarea',
-    // Instagram
     'textarea[placeholder]',
-    // Generic inputs
     'textarea:focus',
     'input[type="text"]:focus'
   ];
 
-  // First try the focused element
   if (activeElement) {
     if (activeElement.isContentEditable || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT') {
       insertIntoElement(activeElement, text);
@@ -53,7 +107,6 @@ function insertTextIntoActiveElement(text) {
     }
   }
 
-  // Try to find chat inputs on the page
   for (const selector of selectors) {
     const elements = document.querySelectorAll(selector);
     for (const el of elements) {
@@ -74,41 +127,29 @@ function isVisible(el) {
 
 function insertIntoElement(element, text) {
   if (element.isContentEditable) {
-    // For contenteditable elements (Facebook, LinkedIn, etc.)
     element.focus();
-
-    // Try to use execCommand for better compatibility
     const selection = window.getSelection();
     const range = document.createRange();
-
-    // Clear selection and insert
     range.selectNodeContents(element);
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
-
     document.execCommand('insertText', false, text);
-
-    // Trigger input events
     element.dispatchEvent(new InputEvent('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
   } else if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
-    // For standard input elements
     const start = element.selectionStart || element.value.length;
     const end = element.selectionEnd || element.value.length;
     const value = element.value;
-
     element.value = value.substring(0, start) + text + value.substring(end);
     element.selectionStart = element.selectionEnd = start + text.length;
-
-    // Trigger events
     element.dispatchEvent(new InputEvent('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
     element.focus();
   }
 }
 
-// Also listen for double-click to extract message context
+// Track last selected text
 let lastSelectedText = '';
 document.addEventListener('selectionchange', function() {
   const selection = window.getSelection().toString().trim();
