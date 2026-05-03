@@ -4,200 +4,413 @@
   <meta charset="UTF-8">
   <style>
     :root {
-      --bg-color: #ffffff;
-      --text-color: #333333;
-      --secondary-text: #666666;
-      --border-color: #dddddd;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #212529;
+      --secondary-text: #6c757d;
+      --border-color: #dee2e6;
       --input-bg: #ffffff;
-      --response-bg: #f5f5f5;
-      --error-bg: #ffeeee;
-      --error-text: #cc0000;
+      --primary: #0d6efd;
+      --primary-hover: #0b5ed7;
+      --success: #198754;
+      --success-hover: #157347;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --response-bg: #f1f3f4;
+      --error-bg: #f8d7da;
+      --error-text: #721c24;
+      --shadow: 0 1px 3px rgba(0,0,0,0.1);
+      --radius: 8px;
     }
 
     [data-theme="dark"] {
-      --bg-color: #1e1e1e;
-      --text-color: #e0e0e0;
+      --bg-color: #1a1a2e;
+      --card-bg: #16213e;
+      --text-color: #e94560;
       --secondary-text: #a0a0a0;
-      --border-color: #444444;
-      --input-bg: #2d2d2d;
-      --response-bg: #2d2d2d;
+      --border-color: #0f3460;
+      --input-bg: #0f3460;
+      --primary: #e94560;
+      --primary-hover: #ff6b6b;
+      --success: #4ecca3;
+      --success-hover: #3db892;
+      --danger: #ff6b6b;
+      --warning: #ffe66d;
+      --response-bg: #0f3460;
       --error-bg: #3a1f1f;
       --error-text: #ff6b6b;
+      --shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
 
+    * { box-sizing: border-box; }
+
     body {
-      width: 400px;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      width: 420px;
+      padding: 0;
       margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: background-color 0.3s, color 0.3s;
     }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 16px 0;
-      color: var(--text-color);
-    }
-    .section {
-      margin-bottom: 16px;
-    }
-    label {
-      display: block;
-      font-size: 12px;
-      color: var(--secondary-text);
-      margin-bottom: 4px;
-    }
-    textarea, select {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 14px;
-      background-color: var(--input-bg);
-      color: var(--text-color);
-      box-sizing: border-box;
-    }
-    textarea {
-      height: 100px;
-      resize: vertical;
-    }
-    button {
-      background: #007AFF;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      width: 100%;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    .response {
-      background: var(--response-bg);
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      color: var(--text-color);
-      display: none;
-    }
-    .response.show {
-      display: block;
-    }
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      color: var(--secondary-text);
-    }
-    .loading.show {
-      display: block;
-    }
-    .error {
-      background: var(--error-bg);
-      color: var(--error-text);
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 12px;
-      font-size: 14px;
-      display: none;
-    }
-    .error.show {
-      display: block;
-    }
-    .actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .actions button {
-      flex: 1;
-    }
-    .copy-btn {
-      background: #34C759;
-    }
-    .copy-btn:hover {
-      background: #28a745;
-    }
-    .settings-link {
-      text-align: center;
-      margin-top: 16px;
-    }
-    .settings-link a {
-      color: #007AFF;
-      text-decoration: none;
-      font-size: 12px;
-    }
-    .settings-link a:hover {
-      text-decoration: underline;
-    }
+
+    .container { padding: 16px; }
+
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
     }
-    .theme-toggle {
+
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      color: var(--text-color);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    .status-online {
+      background: rgba(25, 135, 84, 0.15);
+      color: var(--success);
+    }
+    .status-offline {
+      background: rgba(220, 53, 69, 0.15);
+      color: var(--danger);
+    }
+    .status-checking {
+      background: rgba(255, 193, 7, 0.15);
+      color: var(--warning);
+    }
+
+    .icon-btn {
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 18px;
+      font-size: 16px;
       padding: 4px;
+      border-radius: 4px;
+      color: var(--secondary-text);
       width: auto;
     }
-    .theme-toggle:hover {
-      background: none;
+    .icon-btn:hover {
+      background: var(--response-bg);
+      color: var(--text-color);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--secondary-text);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    textarea, select, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      background-color: var(--input-bg);
+      color: var(--text-color);
+      transition: border-color 0.2s;
+    }
+    textarea:focus, select:focus, input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    textarea {
+      height: 80px;
+      resize: vertical;
+    }
+
+    select { cursor: pointer; }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-block { width: 100%; justify-content: center; }
+
+    .btn-success {
+      background: var(--success);
+    }
+    .btn-success:hover { background: var(--success-hover); }
+
+    .btn-secondary {
+      background: var(--response-bg);
+      color: var(--text-color);
+    }
+    .btn-secondary:hover { background: var(--border-color); }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .btn-group .btn { flex: 1; justify-content: center; }
+
+    .responses-container {
+      display: none;
+      margin-top: 12px;
+    }
+    .responses-container.show { display: block; }
+
+    .response-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .tab-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: var(--response-bg);
+      color: var(--secondary-text);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+    .tab-btn:hover:not(.active) {
+      background: var(--border-color);
+    }
+
+    .response-card {
+      background: var(--response-bg);
+      padding: 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      display: none;
+      border: 1px solid var(--border-color);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .response-card.active { display: block; }
+    .response-card::-webkit-scrollbar { width: 6px; }
+    .response-card::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+
+    .response-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--secondary-text);
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 24px;
+      color: var(--secondary-text);
+    }
+    .loading.show { display: block; }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .streaming-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.2em;
+      background: var(--primary);
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-top: 12px;
+      font-size: 13px;
+      display: none;
+      border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    .error.show { display: block; }
+
+    .toast {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      transform: translateX(120%);
+      transition: transform 0.3s;
+      z-index: 100;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast-success { background: var(--success); color: white; }
+    .toast-info { background: var(--primary); color: white; }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 12px;
+    }
+    .footer a:hover { text-decoration: underline; }
+
+    .model-info {
+      font-size: 11px;
+      color: var(--secondary-text);
+    }
+
+    .variant-selector {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>💬 ChatMate</h1>
-    <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">🌙</button>
+  <div class="container">
+    <div class="header">
+      <h1>💬 ChatMate</h1>
+      <div class="header-actions">
+        <span class="status-badge status-checking" id="status-badge">Checking...</span>
+        <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="template-select">Response Style</label>
+      <select id="template-select">
+        <option value="">Default</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <label for="input-text">Selected text or type your message</label>
+      <textarea id="input-text" placeholder="Select text on a page or type here..."></textarea>
+      <button class="btn btn-block" id="generate-btn" style="margin-top: 10px;">
+        <span>⚡</span> Generate Response
+      </button>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p id="loading-text">Generating response...</p>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <div class="responses-container" id="responses-container">
+      <div class="variant-selector" id="variant-selector">
+        <button class="tab-btn active" data-variant="0">Option 1</button>
+        <button class="tab-btn" data-variant="1">Option 2</button>
+        <button class="tab-btn" data-variant="2">Option 3</button>
+      </div>
+      <div class="response-card active" id="response-0"></div>
+      <div class="response-card" id="response-1"></div>
+      <div class="response-card" id="response-2"></div>
+
+      <div class="response-meta">
+        <span id="model-info" class="model-info"></span>
+        <span id="token-info" class="model-info"></span>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-success" id="copy-btn">
+          <span>📋</span> Copy
+        </button>
+        <button class="btn btn-secondary" id="paste-btn">
+          <span>📥</span> Paste
+        </button>
+        <button class="btn btn-secondary" id="regenerate-btn">
+          <span>🔄</span> Regenerate
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <a href="settings.html" target="_blank">⚙️ Settings</a>
+      <span class="model-info" id="footer-info"></span>
+    </div>
   </div>
 
-  <div class="section">
-    <label for="template-select">Response Style (optional):</label>
-    <select id="template-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px; box-sizing: border-box;">
-      <option value="">Default</option>
-    </select>
-  </div>
+  <div class="toast" id="toast"></div>
 
-  <div class="section">
-    <label for="input-text">Selected text or type your message:</label>
-    <textarea id="input-text" placeholder="Select text on a page or type here..."></textarea>
-  </div>
-  
-  <button id="generate-btn">Generate Response</button>
-  
-  <div class="loading" id="loading">
-    <p>Thinking...</p>
-  </div>
-  
-  <div class="error" id="error"></div>
-  
-  <div class="response" id="response"></div>
-  
-  <div class="actions" id="actions" style="display: none;">
-    <button class="copy-btn" id="copy-btn">Copy</button>
-    <button id="clear-btn">Clear</button>
-  </div>
-  
-  <div class="settings-link">
-    <a href="settings.html" target="_blank">⚙️ Settings</a>
-  </div>
-  
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,14 +1,35 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // DOM Elements
   const inputText = document.getElementById('input-text');
   const templateSelect = document.getElementById('template-select');
   const generateBtn = document.getElementById('generate-btn');
   const loading = document.getElementById('loading');
+  const loadingText = document.getElementById('loading-text');
   const error = document.getElementById('error');
-  const response = document.getElementById('response');
-  const actions = document.getElementById('actions');
+  const responsesContainer = document.getElementById('responses-container');
+  const variantSelector = document.getElementById('variant-selector');
+  const responseCards = [
+    document.getElementById('response-0'),
+    document.getElementById('response-1'),
+    document.getElementById('response-2')
+  ];
   const copyBtn = document.getElementById('copy-btn');
-  const clearBtn = document.getElementById('clear-btn');
+  const pasteBtn = document.getElementById('paste-btn');
+  const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
+  const statusBadge = document.getElementById('status-badge');
+  const modelInfo = document.getElementById('model-info');
+  const tokenInfo = document.getElementById('token-info');
+  const footerInfo = document.getElementById('footer-info');
+  const toast = document.getElementById('toast');
+
+  // State
+  let currentSettings = null;
+  let currentTemplateId = '';
+  let currentInput = '';
+  let activeVariant = 0;
+  let isGenerating = false;
+  let abortController = null;
 
   // Theme handling
   function applyTheme(theme) {
@@ -18,22 +39,64 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   chrome.storage.local.get(['theme'], function(result) {
-    const savedTheme = result.theme || 'light';
-    applyTheme(savedTheme);
+    applyTheme(result.theme || 'light');
   });
 
   themeToggle.addEventListener('click', function() {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
     applyTheme(newTheme);
     chrome.storage.local.set({theme: newTheme});
   });
 
-  // Load settings and templates
-  chrome.storage.local.get(['ollamaUrl', 'modelName', 'templates'], function(result) {
+  // Connection status
+  async function checkConnection() {
+    const settings = await getSettings();
+    if (!settings.ollamaUrl) {
+      setStatus('offline', 'Not configured');
+      return;
+    }
+
+    setStatus('checking', 'Checking...');
+    try {
+      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { method: 'GET', signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const data = await res.json();
+        const modelCount = data.models ? data.models.length : 0;
+        setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}`);
+      } else {
+        setStatus('offline', 'Error');
+      }
+    } catch (err) {
+      setStatus('offline', 'Offline');
+    }
+  }
+
+  function setStatus(type, text) {
+    statusBadge.className = `status-badge status-${type}`;
+    statusBadge.textContent = text;
+  }
+
+  // Load settings, templates, check connection
+  chrome.storage.local.get([
+    'ollamaUrl', 'modelName', 'templates', 'streamingEnabled',
+    'variantCount', 'temperature', 'maxTokens'
+  ], function(result) {
+    currentSettings = {
+      ollamaUrl: result.ollamaUrl,
+      modelName: result.modelName || 'llama2',
+      streamingEnabled: result.streamingEnabled !== false,
+      variantCount: result.variantCount || 1,
+      temperature: result.temperature || 0.7,
+      maxTokens: result.maxTokens || 500
+    };
+
     if (!result.ollamaUrl) {
       showError('Please configure your Ollama URL in Settings');
       generateBtn.disabled = true;
+      setStatus('offline', 'Not configured');
+    } else {
+      checkConnection();
     }
 
     // Load templates
@@ -44,14 +107,23 @@ document.addEventListener('DOMContentLoaded', function() {
       option.textContent = template.name;
       templateSelect.appendChild(option);
     });
+
+    // Update variant buttons visibility
+    updateVariantButtons(result.variantCount || 1);
   });
+
+  function updateVariantButtons(count) {
+    const buttons = variantSelector.querySelectorAll('.tab-btn');
+    buttons.forEach((btn, i) => {
+      btn.style.display = i < count ? 'block' : 'none';
+    });
+  }
 
   // Check for pending text from context menu or keyboard shortcut
   chrome.runtime.sendMessage({action: 'getPendingText'}, function(response) {
     if (response && response.text) {
       inputText.value = response.text;
     } else {
-      // Fallback: get selected text from active tab
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'getSelectedText'}, function(tabResponse) {
           if (tabResponse && tabResponse.text) {
@@ -62,17 +134,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  // Variant tabs
+  variantSelector.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const variant = parseInt(this.dataset.variant);
+      setActiveVariant(variant);
+    });
+  });
+
+  function setActiveVariant(variant) {
+    activeVariant = variant;
+    variantSelector.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', i === variant);
+    });
+    responseCards.forEach((card, i) => {
+      card.classList.toggle('active', i === variant);
+    });
+    updateActionButtons();
+  }
+
+  function updateActionButtons() {
+    const hasContent = responseCards[activeVariant].textContent.length > 0;
+    copyBtn.disabled = !hasContent;
+    pasteBtn.disabled = !hasContent;
+  }
+
+  // Generate response
   generateBtn.addEventListener('click', async function() {
+    if (isGenerating) {
+      // Cancel current generation
+      if (abortController) {
+        abortController.abort();
+      }
+      resetGeneration();
+      return;
+    }
+
     const text = inputText.value.trim();
     if (!text) {
       showError('Please enter some text');
       return;
     }
 
-    showLoading(true);
+    currentInput = text;
+    currentTemplateId = templateSelect.value;
+    await generateResponses(text, currentTemplateId);
+  });
+
+  async function generateResponses(text, templateId) {
+    isGenerating = true;
+    abortController = new AbortController();
+    generateBtn.innerHTML = '<span>⏹</span> Stop';
+    generateBtn.style.background = 'var(--danger)';
     hideError();
-    response.classList.remove('show');
-    actions.style.display = 'none';
+    responsesContainer.classList.remove('show');
+    responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+    loading.classList.add('show');
 
     try {
       const settings = await getSettings();
@@ -80,55 +197,228 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error('Please configure Ollama URL in Settings');
       }
 
-      // Get selected template
-      const templateId = templateSelect.value;
+      // Get template prompt
       let systemPrompt = 'Help me write a response to this message. Keep it natural and conversational';
-      
       if (templateId) {
         const templates = await getTemplates();
         const template = templates.find(t => t.id == templateId);
-        if (template) {
-          systemPrompt = template.prompt;
-        }
+        if (template) systemPrompt = template.prompt;
       }
 
-      const aiResponse = await callOllama(text, settings, systemPrompt);
-      response.textContent = aiResponse;
-      response.classList.add('show');
-      actions.style.display = 'flex';
-      
-      // Save to history
-      saveToHistory(text, aiResponse);
+      const variantCount = settings.variantCount || 1;
+      const promises = [];
+
+      const baseTemp = settings.temperature || 0.7;
+      for (let i = 0; i < variantCount; i++) {
+        // Vary temperature slightly for diversity when generating multiple variants
+        const temperature = variantCount > 1 ? baseTemp + (i * 0.15) : baseTemp;
+        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount));
+      }
+
+      const results = await Promise.allSettled(promises);
+
+      // Show results
+      let hasAnySuccess = false;
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled' && result.value) {
+          responseCards[i].textContent = result.value;
+          hasAnySuccess = true;
+        } else if (result.status === 'rejected') {
+          responseCards[i].textContent = 'Error: ' + result.reason.message;
+        }
+      });
+
+      if (hasAnySuccess) {
+        responsesContainer.classList.add('show');
+        setActiveVariant(0);
+        updateModelInfo(settings);
+
+        // Save to history (save first successful response)
+        const firstSuccess = results.find(r => r.status === 'fulfilled' && r.value);
+        if (firstSuccess) {
+          saveToHistory(text, firstSuccess.value, settings.modelName);
+        }
+      }
     } catch (err) {
-      showError(err.message);
+      if (err.name !== 'AbortError') {
+        showError(err.message);
+      }
     } finally {
-      showLoading(false);
+      resetGeneration();
+    }
+  }
+
+  function resetGeneration() {
+    isGenerating = false;
+    abortController = null;
+    generateBtn.innerHTML = '<span>⚡</span> Generate Response';
+    generateBtn.style.background = '';
+    loading.classList.remove('show');
+  }
+
+  async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total) {
+    if (total > 1) {
+      loadingText.textContent = `Generating option ${index + 1} of ${total}...`;
+    } else {
+      loadingText.textContent = 'Generating response...';
+    }
+
+    const url = `${settings.ollamaUrl}/api/generate`;
+
+    const maxTokens = settings.maxTokens || 500;
+
+    if (settings.streamingEnabled && total === 1) {
+      // Streaming for single response
+      return await streamResponse(url, settings.modelName, systemPrompt, prompt, index, temperature, maxTokens);
+    } else {
+      // Non-streaming for multiple variants
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: settings.modelName,
+          prompt: `${systemPrompt}:\n\n${prompt}`,
+          stream: false,
+          options: {
+            temperature: temperature,
+            num_predict: maxTokens
+          }
+        }),
+        signal: abortController?.signal
+      });
+
+      if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
+      const data = await res.json();
+      return data.response;
+    }
+  }
+
+  async function streamResponse(url, model, systemPrompt, prompt, index, temperature, maxTokens) {
+    responsesContainer.classList.add('show');
+    responseCards[index].classList.add('active');
+    loading.classList.remove('show');
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model,
+        prompt: `${systemPrompt}:\n\n${prompt}`,
+        stream: true,
+        options: {
+          temperature: temperature,
+          num_predict: maxTokens
+        }
+      }),
+      signal: abortController?.signal
+    });
+
+    if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+          if (data.response) {
+            fullText += data.response;
+            responseCards[index].textContent = fullText;
+            responseCards[index].scrollTop = responseCards[index].scrollHeight;
+          }
+          if (data.done) {
+            updateActionButtons();
+            return fullText;
+          }
+        } catch (e) {
+          // Ignore malformed lines
+        }
+      }
+    }
+    return fullText;
+  }
+
+  // Copy button
+  copyBtn.addEventListener('click', async function() {
+    const text = responseCards[activeVariant].textContent;
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard!', 'success');
+    } catch (err) {
+      showToast('Failed to copy', 'info');
     }
   });
 
-  copyBtn.addEventListener('click', function() {
-    navigator.clipboard.writeText(response.textContent).then(function() {
-      copyBtn.textContent = 'Copied!';
-      setTimeout(function() {
-        copyBtn.textContent = 'Copy';
-      }, 2000);
+  // Paste button - try to insert into page
+  pasteBtn.addEventListener('click', async function() {
+    const text = responseCards[activeVariant].textContent;
+    if (!text) return;
+
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'insertText',
+        text: text
+      }, function(response) {
+        if (response && response.success) {
+          showToast('Pasted into chat!', 'success');
+        } else {
+          // Fallback: just copy
+          navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied (paste not supported on this site)', 'success');
+          });
+        }
+      });
     });
   });
 
-  clearBtn.addEventListener('click', function() {
-    inputText.value = '';
-    response.textContent = '';
-    response.classList.remove('show');
-    actions.style.display = 'none';
-    hideError();
+  // Regenerate button
+  regenerateBtn.addEventListener('click', async function() {
+    if (!currentInput) {
+      showError('Nothing to regenerate. Generate a response first.');
+      return;
+    }
+    await generateResponses(currentInput, currentTemplateId);
   });
 
+  // Toast notifications
+  function showToast(message, type) {
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2500);
+  }
+
+  function updateModelInfo(settings) {
+    modelInfo.textContent = `Model: ${settings.modelName}`;
+    tokenInfo.textContent = '';
+    footerInfo.textContent = `${settings.modelName} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
+  }
+
+  // Helpers
   function getSettings() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(['ollamaUrl', 'modelName'], function(result) {
+      chrome.storage.local.get([
+        'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
+        'temperature', 'maxTokens'
+      ], function(result) {
         resolve({
-          ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
-          modelName: result.modelName || 'llama2'
+          ollamaUrl: result.ollamaUrl,
+          modelName: result.modelName || 'llama2',
+          streamingEnabled: result.streamingEnabled !== false,
+          variantCount: result.variantCount || 1,
+          temperature: result.temperature || 0.7,
+          maxTokens: result.maxTokens || 500
         });
       });
     });
@@ -142,47 +432,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  async function callOllama(prompt, settings, systemPrompt) {
-    const url = `${settings.ollamaUrl}/api/generate`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: settings.modelName,
-        prompt: `${systemPrompt}:\n\n${prompt}`,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.response;
-  }
-
-  function saveToHistory(input, output) {
+  function saveToHistory(input, output, modelName) {
     chrome.storage.local.get(['history'], function(result) {
       const history = result.history || [];
       history.unshift({
         input: input,
         output: output,
+        model: modelName,
         timestamp: Date.now()
       });
-      // Keep only last 50 entries
-      if (history.length > 50) {
-        history.pop();
-      }
+      if (history.length > 50) history.pop();
       chrome.storage.local.set({history: history});
     });
-  }
-
-  function showLoading(show) {
-    loading.classList.toggle('show', show);
-    generateBtn.disabled = show;
   }
 
   function showError(message) {
@@ -193,4 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function hideError() {
     error.classList.remove('show');
   }
+
+  // Check connection periodically
+  setInterval(checkConnection, 30000);
 });

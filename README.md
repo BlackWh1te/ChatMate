@@ -1,20 +1,39 @@
 # ChatMate - AI Chat Assistant
 
-A Chrome extension that helps you write better chat responses using your local Ollama AI model.
+A Chrome extension that helps you write better chat responses using your local Ollama AI model. Perfect for customer support, sales outreach, social media, and everyday messaging.
 
 ## Features
 
-- Select text on any webpage and get AI-powered response suggestions
-- Connect to local Ollama instance or remote via ngrok
-- Response history tracking (last 50 entries)
-- Customizable model selection
-- **Response templates** - Create custom response styles (professional, casual, formal, etc.)
-- **Right-click context menu** - Generate response from selected text directly
-- **Keyboard shortcuts** - Quick access without clicking:
+- **AI Response Generation** - Select text on any webpage and get intelligent response suggestions
+- **Streaming Responses** - See responses appear in real-time as they're generated
+- **Multiple Variants** - Generate 2-3 different response options to choose from
+- **Smart Text Extraction** - Works with Facebook, LinkedIn, WhatsApp Web, Slack, Discord, Twitter/X, Telegram, Instagram, and more
+- **One-Click Paste** - Automatically insert responses into chat input fields (supported sites)
+- **Connection Status** - Live indicator showing Ollama connection state
+
+### Response Templates
+- 5 built-in templates: Professional, Casual, Formal, Concise, Empathetic
+- Create unlimited custom templates for different contexts
+- Switch templates instantly from the popup
+
+### Quick Access
+- **Right-click context menu** - "Generate AI Response" on any selected text
+- **Keyboard shortcuts**:
   - `Ctrl+Shift+O` (or `Cmd+Shift+O` on Mac) - Open extension
   - `Ctrl+Shift+G` (or `Cmd+Shift+G` on Mac) - Generate response for selected text
+
+### Customization
+- **Auto-detect models** - Automatically fetch available models from your Ollama instance
+- **Temperature control** - Adjust creativity (0.0 = focused, 2.0 = very creative)
+- **Max tokens** - Control response length (50 - 4096 tokens)
 - **Dark mode** - Toggle between light and dark themes
-- Simple, clean interface
+- **Streaming toggle** - Enable/disable real-time response streaming
+
+### History & Management
+- **Response history** - Automatically saves last 50 conversations
+- **Search history** - Find past responses quickly
+- **Export/Import** - Backup and restore your history as JSON
+- **Model info** - See which model and endpoint you're using
 
 ## Setup Instructions
 
@@ -24,12 +43,11 @@ Download and install Ollama from [ollama.ai](https://ollama.ai)
 
 ### 2. Pull a Model
 
-Open your terminal and run:
 ```bash
 ollama pull llama2
 ```
 
-Or choose another model like `mistral`, `codellama`, etc.
+Popular alternatives: `mistral`, `codellama`, `llama3`, `phi3`
 
 ### 3. Start Ollama
 
@@ -37,108 +55,105 @@ Or choose another model like `mistral`, `codellama`, etc.
 ollama serve
 ```
 
-Ollama will start on `http://localhost:11434`
+Default endpoint: `http://localhost:11434`
 
-### 4. (Optional) Set Up ngrok for Remote Access
-
-If you want to access Ollama from multiple devices or share the tunnel:
+### 4. (Optional) Remote Access with ngrok
 
 ```bash
 ngrok http 11434
 ```
 
-Copy the HTTPS URL from ngrok (e.g., `https://abc123.ngrok-free.app`)
+Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 
 ### 5. Install the Extension
 
-1. Open Chrome and go to `chrome://extensions/`
-2. Enable "Developer mode" in the top right
+1. Open Chrome → `chrome://extensions/`
+2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select this extension folder
+4. Select this folder
 
 ### 6. Configure Settings
 
-1. Click the extension icon in your browser toolbar
-2. Click "⚙️ Settings"
-3. Enter your Ollama URL:
-   - For local: `http://localhost:11434`
-   - For remote (ngrok): `https://your-ngrok-url.ngrok-free.app`
-4. Enter your model name (e.g., `llama2`)
-5. Click "Save Settings"
+1. Click the ChatMate icon → Settings
+2. Enter your Ollama URL
+3. Click **Detect Models** to auto-populate available models
+4. Select your preferred model
+5. Adjust generation settings (optional):
+   - **Temperature**: 0.7 (default) - higher = more creative
+   - **Max tokens**: 500 (default) - max response length
+   - **Variants**: 1-3 options per generation
+   - **Streaming**: On (recommended)
+6. Click "Save Settings"
 
 ## Usage
 
-### Method 1: Click Extension Icon
-1. Navigate to any webpage (Facebook, LinkedIn, email, etc.)
-2. Select the text you want help responding to
-3. Click the extension icon in your toolbar
-4. The selected text will appear in the popup
-5. Optionally select a response style from the dropdown
-6. Click "Generate Response"
-7. Copy the AI response and paste it back
-
-### Method 2: Right-Click Context Menu
+### Method 1: Extension Popup
 1. Select text on any webpage
-2. Right-click and choose "Generate AI Response"
-3. The popup will open with the selected text
-4. Click "Generate Response"
+2. Click the ChatMate icon in your toolbar
+3. The text appears in the popup
+4. Select a template style (optional)
+5. Click **Generate Response**
+6. Copy or paste the AI response
+
+### Method 2: Right-Click
+1. Select text on any webpage
+2. Right-click → "Generate AI Response"
+3. The popup opens with the selected text
 
 ### Method 3: Keyboard Shortcuts
-1. Select text on any webpage
-2. Press `Ctrl+Shift+O` (or `Cmd+Shift+O` on Mac) to open the extension
-3. The selected text will be automatically captured
-4. Click "Generate Response"
+1. Select text
+2. Press `Ctrl+Shift+O` to open, or `Ctrl+Shift+G` to generate directly
 
-You can also use `Ctrl+Shift+G` (or `Cmd+Shift+G` on Mac) to directly generate a response for the selected text.
+## Tips
 
-## Response Templates
+**Generate multiple variants** - Set "Generate multiple variants" to 2 or 3 in Settings to get different response options. Each variant has a slightly different temperature for diversity.
 
-Create custom response styles to match different contexts:
+**Use templates** - Create templates for common scenarios:
+- Sales: "Write a persuasive but not pushy sales response"
+- Support: "Write a helpful, empathetic customer support response"
+- LinkedIn: "Write a professional networking message"
 
-1. Click the extension icon → Settings
-2. Scroll to "Response Templates"
-3. Enter a template name (e.g., "Professional")
-4. Enter a system prompt (e.g., "Write a professional and polite business response")
-5. Click "Add Template"
+**Paste into chats** - The Paste button works on Facebook, LinkedIn, WhatsApp Web, Slack, Discord, and other sites. If it doesn't work on a specific site, Copy and manual paste is the fallback.
 
-Now when generating responses, you can select your custom style from the dropdown in the popup.
-
-Example templates:
-- **Professional**: "Write a professional and polite business response"
-- **Casual**: "Write a friendly and casual response"
-- **Formal**: "Write a formal and respectful response"
-- **Concise**: "Write a brief and to-the-point response"
-
-## Dark Mode
-
-Toggle between light and dark themes:
-
-1. Click the moon/sun icon (🌙/☀️) in the top-right corner of the popup or settings page
-2. Your preference is automatically saved
-3. The theme applies to both the popup and settings pages
+**Stop generation** - Click the Stop button during generation to cancel and save tokens.
 
 ## Troubleshooting
 
-**Extension won't connect to Ollama:**
-- Make sure Ollama is running (`ollama serve`)
-- Check that the URL in settings is correct
-- If using ngrok, make sure ngrok is running and the URL is current
+**Extension won't connect:**
+- Check Ollama is running: `ollama serve`
+- Click **Detect Models** in Settings to verify connection
+- Check the URL is correct (no trailing slash)
 
 **"Ollama error" message:**
-- Verify your model is installed: `ollama list`
-- Try pulling the model again: `ollama pull llama2`
+- Verify model is installed: `ollama list`
+- Re-pull the model: `ollama pull llama2`
 - Check Ollama logs for errors
 
-**Text selection not working:**
-- Refresh the page after installing the extension
-- Make sure you're selecting text before clicking the extension
+**Paste button doesn't work:**
+- Some sites (like Twitter/X) have strict security - use Copy instead
+- The site must have a visible text input field
+
+**Slow responses:**
+- Larger models (70B+) are slower - try smaller models like `phi3` or `llama3`
+- Enable streaming to see responses in real-time
+- Reduce max tokens for shorter, faster responses
+
+## Supported Sites for Auto-Paste
+
+- Facebook Messenger
+- LinkedIn Messaging
+- WhatsApp Web
+- Slack
+- Discord
+- Telegram Web
+- Instagram DMs
+- Generic textareas and inputs
 
 ## Development
 
-To modify the extension:
-1. Edit the source files
+1. Edit source files
 2. Go to `chrome://extensions/`
-3. Click the refresh icon on this extension card
+3. Click refresh on the ChatMate card
 
 ## License
 

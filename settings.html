@@ -4,210 +4,442 @@
   <meta charset="UTF-8">
   <style>
     :root {
-      --bg-color: #ffffff;
-      --text-color: #333333;
-      --secondary-text: #666666;
-      --border-color: #dddddd;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #212529;
+      --secondary-text: #6c757d;
+      --border-color: #dee2e6;
       --input-bg: #ffffff;
-      --response-bg: #f5f5f5;
-      --success-bg: #d4edda;
-      --success-text: #155724;
-      --error-bg: #fee;
-      --error-text: #c00;
-      --info-bg: #e3f2fd;
-      --info-text: #0d47a1;
+      --primary: #0d6efd;
+      --primary-hover: #0b5ed7;
+      --success: #198754;
+      --success-hover: #157347;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --response-bg: #f1f3f4;
+      --error-bg: #f8d7da;
+      --error-text: #721c24;
+      --shadow: 0 1px 3px rgba(0,0,0,0.1);
+      --radius: 8px;
     }
 
     [data-theme="dark"] {
-      --bg-color: #1e1e1e;
-      --text-color: #e0e0e0;
+      --bg-color: #1a1a2e;
+      --card-bg: #16213e;
+      --text-color: #e94560;
       --secondary-text: #a0a0a0;
-      --border-color: #444444;
-      --input-bg: #2d2d2d;
-      --response-bg: #2d2d2d;
-      --success-bg: #1a3a1a;
-      --success-text: #68c768;
+      --border-color: #0f3460;
+      --input-bg: #0f3460;
+      --primary: #e94560;
+      --primary-hover: #ff6b6b;
+      --success: #4ecca3;
+      --success-hover: #3db892;
+      --danger: #ff6b6b;
+      --warning: #ffe66d;
+      --response-bg: #0f3460;
       --error-bg: #3a1f1f;
       --error-text: #ff6b6b;
-      --info-bg: #1a2f4a;
-      --info-text: #7ab8ff;
+      --shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
 
+    * { box-sizing: border-box; }
+
     body {
-      width: 400px;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      width: 440px;
+      padding: 0;
       margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: background-color 0.3s, color 0.3s;
     }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 16px 0;
-      color: var(--text-color);
-    }
-    .section {
-      margin-bottom: 16px;
-    }
-    label {
-      display: block;
-      font-size: 12px;
-      color: var(--secondary-text);
-      margin-bottom: 4px;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background-color: var(--input-bg);
-      color: var(--text-color);
-      font-family: inherit;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-    button {
-      background: #007AFF;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      width: 100%;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    .success {
-      background: var(--success-bg);
-      color: var(--success-text);
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 12px;
-      font-size: 14px;
-      display: none;
-    }
-    .success.show {
-      display: block;
-    }
-    .error {
-      background: var(--error-bg);
-      color: var(--error-text);
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 12px;
-      font-size: 14px;
-      display: none;
-    }
-    .error.show {
-      display: block;
-    }
-    .info {
-      background: var(--info-bg);
-      color: var(--info-text);
-      padding: 12px;
-      border-radius: 6px;
-      margin-top: 16px;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-    .history-section {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border-color);
-    }
-    .history-item {
-      background: var(--response-bg);
-      padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 8px;
-      font-size: 12px;
-    }
-    .history-input {
-      color: #666;
-      margin-bottom: 4px;
-    }
-    .history-output {
-      color: #333;
-    }
-    .clear-history {
-      background: #dc3545;
-      margin-top: 8px;
-    }
-    .clear-history:hover {
-      background: #c82333;
-    }
+
+    .container { padding: 16px; }
+
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
     }
-    .theme-toggle {
+
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      color: var(--text-color);
+      font-weight: 600;
+    }
+
+    .icon-btn {
       background: none;
       border: none;
       cursor: pointer;
       font-size: 18px;
       padding: 4px;
+      border-radius: 4px;
+      color: var(--secondary-text);
       width: auto;
     }
-    .theme-toggle:hover {
-      background: none;
+    .icon-btn:hover {
+      background: var(--response-bg);
+      color: var(--text-color);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      color: var(--text-color);
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--secondary-text);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      background-color: var(--input-bg);
+      color: var(--text-color);
+      font-family: inherit;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > * { flex: 1; }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--primary);
+    }
+    .slider-value {
+      font-size: 13px;
+      color: var(--secondary-text);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--border-color);
+      transition: .3s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn-block { width: 100%; }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: var(--success-hover); }
+    .btn-danger { background: var(--danger); }
+    .btn-secondary {
+      background: var(--response-bg);
+      color: var(--text-color);
+    }
+    .btn-secondary:hover { background: var(--border-color); }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-group .btn { flex: 1; }
+
+    .success {
+      background: rgba(25, 135, 84, 0.15);
+      color: var(--success);
+      padding: 10px;
+      border-radius: var(--radius);
+      margin-top: 10px;
+      font-size: 13px;
+      display: none;
+    }
+    .success.show { display: block; }
+
+    .error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      padding: 10px;
+      border-radius: var(--radius);
+      margin-top: 10px;
+      font-size: 13px;
+      display: none;
+      border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    .error.show { display: block; }
+
+    .info {
+      background: var(--response-bg);
+      padding: 12px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--secondary-text);
+      margin-top: 10px;
+    }
+    .info code {
+      background: rgba(0,0,0,0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+
+    .history-section {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .search-box {
+      margin-bottom: 10px;
+    }
+
+    .history-item {
+      background: var(--response-bg);
+      padding: 10px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .history-input {
+      color: var(--secondary-text);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .history-output {
+      color: var(--text-color);
+      line-height: 1.4;
+    }
+    .history-meta {
+      font-size: 11px;
+      color: var(--secondary-text);
+      margin-top: 4px;
+    }
+
+    .templates-list {
+      margin-top: 10px;
+    }
+    .template-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--response-bg);
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+    }
+    .template-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .template-name {
+      font-weight: 500;
+      font-size: 12px;
+      color: var(--text-color);
+    }
+    .template-prompt {
+      font-size: 11px;
+      color: var(--secondary-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .template-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .small-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: var(--secondary-text);
+      font-size: 13px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 14px 0;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>⚙️ Settings</h1>
-    <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">🌙</button>
-  </div>
-  
-  <div class="section">
-    <label for="ollama-url">Ollama URL (include ngrok if using remote):</label>
-    <input type="text" id="ollama-url" placeholder="http://localhost:11434 or https://your-ngrok-url">
-  </div>
-  
-  <div class="section">
-    <label for="model-name">Model Name:</label>
-    <input type="text" id="model-name" placeholder="llama2, mistral, etc.">
-  </div>
-  
-  <button id="save-btn">Save Settings</button>
-  
-  <div class="success" id="success">Settings saved!</div>
-  <div class="error" id="error"></div>
-  
-  <div class="info">
-    <strong>Setup Instructions:</strong><br>
-    1. Install Ollama: <a href="https://ollama.ai" target="_blank">ollama.ai</a><br>
-    2. Pull a model: <code>ollama pull llama2</code><br>
-    3. For remote access, use ngrok: <code>ngrok http 11434</code><br>
-    4. Enter the ngrok URL above (e.g., https://xyz.ngrok-free.app)
-  </div>
-  
-  <div class="history-section">
-    <h2>History</h2>
-    <div id="history-list"></div>
-    <button class="clear-history" id="clear-history-btn">Clear History</button>
-  </div>
-  
-  <div class="history-section">
-    <h2>Response Templates</h2>
-    <div class="section">
-      <label for="template-name">Template Name:</label>
-      <input type="text" id="template-name" placeholder="e.g., Professional response">
+  <div class="container">
+    <div class="header">
+      <h1>⚙️ ChatMate Settings</h1>
+      <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
     </div>
-    <div class="section">
-      <label for="template-prompt">System Prompt:</label>
-      <input type="text" id="template-prompt" placeholder="e.g., Write a professional and polite response">
+
+    <!-- Connection Settings -->
+    <div class="card">
+      <div class="card-title">Connection</div>
+
+      <label for="ollama-url">Ollama URL</label>
+      <div class="row">
+        <input type="text" id="ollama-url" placeholder="http://localhost:11434" style="flex: 3;">
+        <button class="btn btn-secondary" id="detect-models-btn" style="flex: 1; font-size: 12px;">
+          🔍 Detect
+        </button>
+      </div>
+
+      <label for="model-select">Model</label>
+      <select id="model-select">
+        <option value="llama2">llama2 (default)</option>
+      </select>
     </div>
-    <button id="add-template-btn">Add Template</button>
-    <div id="templates-list" style="margin-top: 12px;"></div>
+
+    <!-- Generation Settings -->
+    <div class="card">
+      <div class="card-title">Generation Settings</div>
+
+      <div class="toggle-row">
+        <label style="margin: 0;">Enable streaming responses</label>
+        <label class="switch">
+          <input type="checkbox" id="streaming-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <label style="margin: 0;">Generate multiple variants</label>
+        <select id="variant-count" style="width: auto; margin: 0;">
+          <option value="1">1 option</option>
+          <option value="2">2 options</option>
+          <option value="3">3 options</option>
+        </select>
+      </div>
+
+      <label>Temperature (creativity)</label>
+      <div class="slider-container">
+        <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7">
+        <span class="slider-value" id="temperature-value">0.7</span>
+      </div>
+
+      <label for="max-tokens">Max response length (tokens)</label>
+      <input type="number" id="max-tokens" min="50" max="4096" value="500" step="50">
+    </div>
+
+    <button class="btn btn-block" id="save-btn">Save Settings</button>
+
+    <div class="success" id="success">Settings saved!</div>
+    <div class="error" id="error"></div>
+
+    <div class="info">
+      <strong>Setup Instructions:</strong><br>
+      1. Install Ollama: <a href="https://ollama.ai" target="_blank" style="color: var(--primary);">ollama.ai</a><br>
+      2. Pull a model: <code>ollama pull llama2</code><br>
+      3. Start Ollama: <code>ollama serve</code><br>
+      4. For remote access: <code>ngrok http 11434</code>
+    </div>
+
+    <!-- Response Templates -->
+    <div class="card">
+      <div class="card-title">Response Templates</div>
+
+      <label for="template-name">Template Name</label>
+      <input type="text" id="template-name" placeholder="e.g., Professional">
+
+      <label for="template-prompt">System Prompt</label>
+      <input type="text" id="template-prompt" placeholder="e.g., Write a professional response">
+
+      <button class="btn btn-block btn-success" id="add-template-btn" style="margin-top: 6px;">
+        + Add Template
+      </button>
+
+      <div id="templates-list" class="templates-list"></div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-title">History</div>
+
+      <input type="text" id="history-search" class="search-box" placeholder="Search history...">
+
+      <div class="btn-group" style="margin-bottom: 10px;">
+        <button class="btn btn-secondary small-btn" id="export-history-btn">📤 Export</button>
+        <button class="btn btn-secondary small-btn" id="import-history-btn">📥 Import</button>
+        <button class="btn btn-danger small-btn" id="clear-history-btn">🗑 Clear</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display: none;">
+
+      <div id="history-list"></div>
+    </div>
   </div>
-  
+
   <script src="settings.js"></script>
 </body>
 </html>
