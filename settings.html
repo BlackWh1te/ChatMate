@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #333333;
+      --secondary-text: #666666;
+      --border-color: #dddddd;
+      --input-bg: #ffffff;
+      --response-bg: #f5f5f5;
+      --success-bg: #d4edda;
+      --success-text: #155724;
+      --error-bg: #fee;
+      --error-text: #c00;
+      --info-bg: #e3f2fd;
+      --info-text: #0d47a1;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1e1e1e;
+      --text-color: #e0e0e0;
+      --secondary-text: #a0a0a0;
+      --border-color: #444444;
+      --input-bg: #2d2d2d;
+      --response-bg: #2d2d2d;
+      --success-bg: #1a3a1a;
+      --success-text: #68c768;
+      --error-bg: #3a1f1f;
+      --error-text: #ff6b6b;
+      --info-bg: #1a2f4a;
+      --info-text: #7ab8ff;
+    }
+
+    body {
+      width: 400px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px 0;
+      color: var(--text-color);
+    }
+    .section {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--secondary-text);
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background-color: var(--input-bg);
+      color: var(--text-color);
+      font-family: inherit;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      width: 100%;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .success {
+      background: var(--success-bg);
+      color: var(--success-text);
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 14px;
+      display: none;
+    }
+    .success.show {
+      display: block;
+    }
+    .error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 14px;
+      display: none;
+    }
+    .error.show {
+      display: block;
+    }
+    .info {
+      background: var(--info-bg);
+      color: var(--info-text);
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 16px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .history-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+    .history-item {
+      background: var(--response-bg);
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .history-input {
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .history-output {
+      color: #333;
+    }
+    .clear-history {
+      background: #dc3545;
+      margin-top: 8px;
+    }
+    .clear-history:hover {
+      background: #c82333;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .theme-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      width: auto;
+    }
+    .theme-toggle:hover {
+      background: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚙️ Settings</h1>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">🌙</button>
+  </div>
+  
+  <div class="section">
+    <label for="ollama-url">Ollama URL (include ngrok if using remote):</label>
+    <input type="text" id="ollama-url" placeholder="http://localhost:11434 or https://your-ngrok-url">
+  </div>
+  
+  <div class="section">
+    <label for="model-name">Model Name:</label>
+    <input type="text" id="model-name" placeholder="llama2, mistral, etc.">
+  </div>
+  
+  <button id="save-btn">Save Settings</button>
+  
+  <div class="success" id="success">Settings saved!</div>
+  <div class="error" id="error"></div>
+  
+  <div class="info">
+    <strong>Setup Instructions:</strong><br>
+    1. Install Ollama: <a href="https://ollama.ai" target="_blank">ollama.ai</a><br>
+    2. Pull a model: <code>ollama pull llama2</code><br>
+    3. For remote access, use ngrok: <code>ngrok http 11434</code><br>
+    4. Enter the ngrok URL above (e.g., https://xyz.ngrok-free.app)
+  </div>
+  
+  <div class="history-section">
+    <h2>History</h2>
+    <div id="history-list"></div>
+    <button class="clear-history" id="clear-history-btn">Clear History</button>
+  </div>
+  
+  <div class="history-section">
+    <h2>Response Templates</h2>
+    <div class="section">
+      <label for="template-name">Template Name:</label>
+      <input type="text" id="template-name" placeholder="e.g., Professional response">
+    </div>
+    <div class="section">
+      <label for="template-prompt">System Prompt:</label>
+      <input type="text" id="template-prompt" placeholder="e.g., Write a professional and polite response">
+    </div>
+    <button id="add-template-btn">Add Template</button>
+    <div id="templates-list" style="margin-top: 12px;"></div>
+  </div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>
