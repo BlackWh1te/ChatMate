@@ -215,7 +215,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const limit = maxLength || 4000;
         const fetchPromises = urls.map(async (item) => {
           try {
-            const res = await fetch(item.url, { signal: AbortSignal.timeout(8000) });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            const res = await fetch(item.url, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!res.ok) return null;
             const html = await res.text();
             const text = htmlToText(html);

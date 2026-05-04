@@ -122,18 +122,21 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 async function detectModelsFromBackground(url) {
+  console.log('[ChatMate] Detecting models from:', url);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     const res = await fetch(`${url}/api/tags`, { signal: controller.signal });
     clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('Failed to connect');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const models = data.models || [];
     const modelNames = models.map(m => m.name || m.model).filter(Boolean);
+    console.log('[ChatMate] Found models:', modelNames);
     return {models: modelNames};
   } catch (err) {
     clearTimeout(timeoutId);
+    console.error('[ChatMate] Model detection failed:', err.message);
     throw err;
   }
 }

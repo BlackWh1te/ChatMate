@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // DOM Elements
   const ollamaUrlInput = document.getElementById('ollama-url');
   const modelSelect = document.getElementById('model-select');
+  const modelManual = document.getElementById('model-manual');
   const detectModelsBtn = document.getElementById('detect-models-btn');
   const saveBtn = document.getElementById('save-btn');
   const streamingToggle = document.getElementById('streaming-toggle');
@@ -104,16 +105,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (chrome.runtime.lastError || (response && response.error)) {
         showError('Cannot connect: ' + (response?.error || chrome.runtime.lastError?.message || 'unknown error'));
+        // Show manual input so user can type model name
+        modelSelect.style.display = 'none';
+        modelManual.style.display = 'block';
         return;
       }
 
-      if (response && response.models) {
+      if (response && response.models && response.models.length > 0) {
         const modelNames = response.models;
         chrome.storage.local.set({ models: modelNames });
-        populateModelSelect(modelSelect.value || modelNames[0] || 'llama2', modelNames);
+        populateModelSelect(modelNames[0], modelNames);
         showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}`);
       } else {
         showError('No models found');
+        modelSelect.style.display = 'none';
+        modelManual.style.display = 'block';
       }
     });
   });
@@ -122,11 +128,18 @@ document.addEventListener('DOMContentLoaded', function() {
     modelSelect.innerHTML = '';
 
     if (availableModels.length === 0) {
+      // No models detected — show manual input
+      modelSelect.style.display = 'none';
+      modelManual.style.display = 'block';
+      modelManual.value = selectedModel || '';
       const option = document.createElement('option');
-      option.value = selectedModel || 'llama2';
-      option.textContent = (selectedModel || 'llama2') + ' (manual)';
+      option.value = '__manual__';
+      option.textContent = 'Type manually below';
       modelSelect.appendChild(option);
     } else {
+      // Models detected — use dropdown, hide manual input
+      modelSelect.style.display = 'block';
+      modelManual.style.display = 'none';
       availableModels.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
@@ -140,7 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Save settings
   saveBtn.addEventListener('click', function() {
     const ollamaUrl = ollamaUrlInput.value.trim();
-    const modelName = modelSelect.value.trim();
+    const modelName = (modelManual.style.display !== 'none' && modelManual.value.trim())
+      ? modelManual.value.trim()
+      : modelSelect.value.trim();
     const streaming = streamingToggle.checked;
     const variants = parseInt(variantCount.value);
     const temp = parseFloat(temperatureSlider.value);
