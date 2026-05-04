@@ -297,6 +297,23 @@ document.addEventListener('DOMContentLoaded', function() {
     updateVariantButtons(result.variantCount || 1);
   });
 
+  // Auto-read page when Reddit-specific tone is selected
+  templateSelect.addEventListener('change', async function() {
+    const templateId = this.value;
+    const customTemplates = currentSettings?.templates || [];
+    const template = [...BUILTIN_TEMPLATES, ...customTemplates].find(t => t.id === templateId);
+
+    if (template && template.reddit) {
+      // Reddit-specific tone selected: enable context and auto-read page
+      contextToggle.checked = true;
+      chrome.storage.local.set({contextEnabled: true});
+      // Auto-read page if not already read
+      if (!storedPageText) {
+        readPageBtn.click();
+      }
+    }
+  });
+
   // Restore previous responses (persist across popup closes)
   chrome.storage.local.get(['lastResponses', 'lastActiveVariant', 'lastInput'], function(result) {
     if (result.lastResponses && result.lastResponses.length > 0) {
@@ -755,13 +772,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (template) systemPrompt = template.prompt;
       }
 
-      // If on Reddit and formatting toggles are enabled, append formatting instruction
-      const isRedditContext = (currentPageContext && currentPageContext.platform === 'reddit') ||
-        (storedPageText && storedPageText.includes('[POST TITLE]'));
-      if (isRedditContext) {
-        const fmtInstr = buildFormattingInstruction(settings.redditFormatting);
+      // If template is Reddit-specific, use its formatting options
+      // Otherwise, only apply formatting if explicitly enabled in global settings (legacy)
+      if (template && template.reddit && template.redditFormatting) {
+        const fmtInstr = buildFormattingInstruction(template.redditFormatting);
         if (fmtInstr) {
           systemPrompt += '\n\n' + fmtInstr;
+        }
+      } else if (settings.redditFormatting) {
+        // Legacy: apply global formatting if template is not Reddit-specific
+        // but only if we're actually on Reddit (to avoid applying Reddit formatting to non-Reddit sites)
+        const isRedditContext = (currentPageContext && currentPageContext.platform === 'reddit') ||
+          (storedPageText && storedPageText.includes('[POST TITLE]'));
+        if (isRedditContext) {
+          const fmtInstr = buildFormattingInstruction(settings.redditFormatting);
+          if (fmtInstr) {
+            systemPrompt += '\n\n' + fmtInstr;
+          }
         }
       }
 
@@ -1073,13 +1100,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (imageCount > 0) {
       footerText += ` • ${imageCount} image${imageCount > 1 ? 's' : ''}`;
     }
-    // Show formatting badge when on Reddit with active Markdown toggles
-    const isRedditCtx = (pageContext && pageContext.platform === 'reddit') ||
-      (storedPageText && storedPageText.includes('[POST TITLE]'));
-    if (isRedditCtx && settings.redditFormatting) {
-      const fmtKeys = Object.keys(settings.redditFormatting).filter(k => settings.redditFormatting[k]);
+    // Show formatting badge when using Reddit-specific tone or on Reddit with global formatting
+    const templates = await getTemplates();
+    const template = templates.find(t => t.id == currentTemplateId);
+    if (template && template.reddit && template.redditFormatting) {
+      const fmtKeys = Object.keys(template.redditFormatting).filter(k => template.redditFormatting[k]);
       if (fmtKeys.length > 0) {
         footerText += ` • 📝 ${fmtKeys.length} format${fmtKeys.length > 1 ? 's' : ''}`;
+      }
+    } else if (settings.redditFormatting) {
+      // Legacy: show global formatting only if on Reddit
+      const isRedditCtx = (pageContext && pageContext.platform === 'reddit') ||
+        (storedPageText && storedPageText.includes('[POST TITLE]'));
+      if (isRedditCtx) {
+        const fmtKeys = Object.keys(settings.redditFormatting).filter(k => settings.redditFormatting[k]);
+        if (fmtKeys.length > 0) {
+          footerText += ` • 📝 ${fmtKeys.length} format${fmtKeys.length > 1 ? 's' : ''}`;
+        }
       }
     }
     footerInfo.textContent = footerText;

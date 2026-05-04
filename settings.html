@@ -550,77 +550,8 @@
       </div>
     </div>
 
-    <!-- Reddit Formatting -->
-    <div class="card">
-      <div class="card-title">Reddit Formatting (Markdown)</div>
-      <p style="font-size: 12px; color: var(--secondary-text); margin: 0 0 10px 0;">
-        Enable the Markdown styles you want the AI to use in Reddit replies. All are off by default.
-      </p>
-
-      <div class="toggle-row">
-        <label style="margin: 0;"><strong>Bold</strong> <span style="color:var(--secondary-text);font-size:11px;">**text**</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-bold">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;"><em>Italic</em> <span style="color:var(--secondary-text);font-size:11px;">*text*</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-italic">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Headings <span style="color:var(--secondary-text);font-size:11px;"># ## ###</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-heading">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Bullet list <span style="color:var(--secondary-text);font-size:11px;">* item</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-bullet">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Numbered list <span style="color:var(--secondary-text);font-size:11px;">1. item</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-numlist">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Quote block <span style="color:var(--secondary-text);font-size:11px;">&gt; text</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-quote">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Inline code <span style="color:var(--secondary-text);font-size:11px;">`code`</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-inlinecode">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Code block <span style="color:var(--secondary-text);font-size:11px;">```code```</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-codeblock">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label style="margin: 0;">Table <span style="color:var(--secondary-text);font-size:11px;">| col |</span></label>
-        <label class="switch">
-          <input type="checkbox" id="fmt-table">
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
+    <!-- Reddit Formatting (moved to per-template) -->
+    <!-- Global Reddit formatting removed - now part of each tone template -->
 
     <button class="btn btn-block" id="save-btn">Save Settings</button>
 
@@ -661,7 +592,88 @@
       <label for="template-prompt">Instructions for the AI</label>
       <input type="text" id="template-prompt" placeholder="e.g., Write like a friendly coworker">
 
-      <button class="btn btn-block btn-success" id="add-template-btn" style="margin-top: 6px;">
+      <div class="toggle-row" style="margin-top: 8px;">
+        <label style="margin: 0;">Reddit-specific tone</label>
+        <label class="switch" style="margin: 0;">
+          <input type="checkbox" id="template-reddit">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="hint">
+        When enabled, this tone will auto-read Reddit pages and use Reddit formatting. Only use for Reddit replies.
+      </div>
+
+      <div id="template-reddit-fmt" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 12px; color: var(--secondary-text); margin-bottom: 10px; font-weight: 600;">
+          Reddit Markdown Formatting for this tone:
+        </div>
+
+        <div class="toggle-row">
+          <label style="margin: 0;"><strong>Bold</strong> <span style="color:var(--secondary-text);font-size:11px;">**text**</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-bold">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;"><em>Italic</em> <span style="color:var(--secondary-text);font-size:11px;">*text*</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-italic">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Headings <span style="color:var(--secondary-text);font-size:11px;"># ## ###</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-heading">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Bullet list <span style="color:var(--secondary-text);font-size:11px;">* item</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-bullet">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Numbered list <span style="color:var(--secondary-text);font-size:11px;">1. item</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-numlist">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Quote block <span style="color:var(--secondary-text);font-size:11px;">&gt; text</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-quote">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Inline code <span style="color:var(--secondary-text);font-size:11px;">`code`</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-inlinecode">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Code block <span style="color:var(--secondary-text);font-size:11px;">```code```</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-codeblock">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label style="margin: 0;">Table <span style="color:var(--secondary-text);font-size:11px;">| col |</span></label>
+          <label class="switch" style="margin: 0;">
+            <input type="checkbox" id="tfmt-table">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn btn-block btn-success" id="add-template-btn" style="margin-top: 12px;">
         + Add Tone
       </button>
 

@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const success = document.getElementById('success');
   const error = document.getElementById('error');
 
-  // Reddit formatting toggles
+  // Reddit formatting toggles (global - deprecated, kept for migration)
   const fmtBold = document.getElementById('fmt-bold');
   const fmtItalic = document.getElementById('fmt-italic');
   const fmtHeading = document.getElementById('fmt-heading');
@@ -40,6 +40,19 @@ document.addEventListener('DOMContentLoaded', function() {
   const fmtInlinecode = document.getElementById('fmt-inlinecode');
   const fmtCodeblock = document.getElementById('fmt-codeblock');
   const fmtTable = document.getElementById('fmt-table');
+
+  // Template-specific Reddit formatting
+  const templateReddit = document.getElementById('template-reddit');
+  const templateRedditFmt = document.getElementById('template-reddit-fmt');
+  const tfmtBold = document.getElementById('tfmt-bold');
+  const tfmtItalic = document.getElementById('tfmt-italic');
+  const tfmtHeading = document.getElementById('tfmt-heading');
+  const tfmtBullet = document.getElementById('tfmt-bullet');
+  const tfmtNumlist = document.getElementById('tfmt-numlist');
+  const tfmtQuote = document.getElementById('tfmt-quote');
+  const tfmtInlinecode = document.getElementById('tfmt-inlinecode');
+  const tfmtCodeblock = document.getElementById('tfmt-codeblock');
+  const tfmtTable = document.getElementById('tfmt-table');
 
   // Reference URLs
   const refUrlInput = document.getElementById('ref-url-input');
@@ -90,6 +103,13 @@ document.addEventListener('DOMContentLoaded', function() {
   temperatureSlider.addEventListener('input', function() {
     temperatureValue.textContent = this.value;
   });
+
+  // Toggle Reddit formatting section when template-reddit checkbox changes
+  if (templateReddit) {
+    templateReddit.addEventListener('change', function() {
+      templateRedditFmt.style.display = this.checked ? 'block' : 'none';
+    });
+  }
 
   // Load current settings
   chrome.storage.local.get([
@@ -335,13 +355,38 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
+    const isReddit = templateReddit ? templateReddit.checked : false;
+    const redditFmt = isReddit ? {
+      bold: tfmtBold ? tfmtBold.checked : false,
+      italic: tfmtItalic ? tfmtItalic.checked : false,
+      heading: tfmtHeading ? tfmtHeading.checked : false,
+      bullet: tfmtBullet ? tfmtBullet.checked : false,
+      numlist: tfmtNumlist ? tfmtNumlist.checked : false,
+      quote: tfmtQuote ? tfmtQuote.checked : false,
+      inlinecode: tfmtInlinecode ? tfmtInlinecode.checked : false,
+      codeblock: tfmtCodeblock ? tfmtCodeblock.checked : false,
+      table: tfmtTable ? tfmtTable.checked : false
+    } : null;
+
     chrome.storage.local.get(['templates'], function(result) {
       const templates = result.templates || [];
-      templates.push({ name, prompt, id: Date.now() });
+      templates.push({ name, prompt, id: Date.now(), reddit: isReddit, redditFormatting: redditFmt });
       chrome.storage.local.set({ templates: templates }, function() {
         displayTemplates(templates);
         templateNameInput.value = '';
         templatePromptInput.value = '';
+        if (templateReddit) templateReddit.checked = false;
+        if (templateRedditFmt) templateRedditFmt.style.display = 'none';
+        // Reset formatting toggles
+        if (tfmtBold) tfmtBold.checked = false;
+        if (tfmtItalic) tfmtItalic.checked = false;
+        if (tfmtHeading) tfmtHeading.checked = false;
+        if (tfmtBullet) tfmtBullet.checked = false;
+        if (tfmtNumlist) tfmtNumlist.checked = false;
+        if (tfmtQuote) tfmtQuote.checked = false;
+        if (tfmtInlinecode) tfmtInlinecode.checked = false;
+        if (tfmtCodeblock) tfmtCodeblock.checked = false;
+        if (tfmtTable) tfmtTable.checked = false;
         showSuccess('Tone saved!');
       });
     });
@@ -353,17 +398,20 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    templatesList.innerHTML = templates.map(template => `
+    templatesList.innerHTML = templates.map(template => {
+      const redditBadge = template.reddit ? ' <span style="background:var(--primary-soft);color:var(--primary);padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;">Reddit</span>' : '';
+      return `
       <div class="template-item" data-id="${template.id}">
         <div class="template-info">
-          <div class="template-name">${escapeHtml(template.name)}</div>
+          <div class="template-name">${escapeHtml(template.name)}${redditBadge}</div>
           <div class="template-prompt">${escapeHtml(template.prompt)}</div>
         </div>
         <div class="template-actions">
           <button class="btn btn-danger small-btn delete-template" data-id="${template.id}">Delete</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     templatesList.querySelectorAll('.delete-template').forEach(btn => {
       btn.addEventListener('click', function() {
