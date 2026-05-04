@@ -553,6 +553,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     currentInput = text;
     currentTemplateId = templateSelect.value;
+
+    // Auto-read page if user asks for a reply but hasn't read yet
+    const hasReplyIntent = detectReplyIntent(text);
+    if (hasReplyIntent && !storedPageText) {
+      showToast('Reading page for context...', 'info');
+      await readPage();
+    }
+
     await generateResponses(text, currentTemplateId);
   });
 
@@ -628,11 +636,38 @@ document.addEventListener('DOMContentLoaded', function() {
     return null;
   }
 
+  // Detect if user is asking for a reply/response to a post/comment
+  function detectReplyIntent(input) {
+    if (!input) return false;
+    const replyPatterns = [
+      /\b(repl(?:y|ies|ied|ying)|respond|comment|answer)\b.*\b(post|thread|comment|this|above|it)\b/i,
+      /\b(write|give|create|draft)\b.*\b(repl(?:y|y|ies)|comment|response)\b/i,
+      /\b(short|quick|brief|simple)\b.*\b(repl(?:y|y|ies)|comment|answer)\b/i,
+      /\bpost\s+a\s+comment\b/i,
+      /\bsay\s+(?:in\s+)?reply\b/i,
+      /\bwhat\s+(?:should|would|could)\s+i\s+say\b/i,
+      /\bhow\s+(?:should|would|could)\s+i\s+reply\b/i,
+      /\bhelp\s+me\s+reply\b/i,
+      /\breply\s+to\s+(?:this|that|post|comment|them|him|her)\b/i,
+      /\breply\s+to\b/i  // Simple "reply to"
+    ];
+    const lower = input.toLowerCase();
+    return replyPatterns.some(p => p.test(lower));
+  }
+
   // Build Ollama /api/chat messages array
   // Separates system instructions from user content for much better instruction-tuned model responses
   // images: array of base64 JPEG strings (for vision models)
   function buildMessages(systemPrompt, userInput, pageContext, refContents, explicitPageText, images) {
-    const systemContent = systemPrompt || 'You are a helpful assistant.';
+    const hasReplyIntent = detectReplyIntent(userInput);
+    const hasPageContext = !!(explicitPageText || pageContext?.text);
+    const isRedditContext = (pageContext?.platform === 'reddit') || (explicitPageText && explicitPageText.includes('[POST TITLE]'));
+
+    // Modify system prompt when writing a reply to Reddit
+    let systemContent = systemPrompt || 'You are a helpful assistant.';
+    if (hasReplyIntent && isRedditContext && hasPageContext) {
+      systemContent += '\n\nCRITICAL: You are writing a Reddit comment/reply. Output ONLY the comment text. Do NOT say "Here is a reply" or "I\'m happy to help". Do NOT explain your reasoning. Do NOT analyze the post. Just write what a real Reddit user would type. Keep it natural and authentic. Do NOT quote the original post in your reply unless specifically quoting to make a point.';
+    }
 
     let userContent = '';
     if (refContents && refContents.length > 0) {
@@ -698,6 +733,8 @@ document.addEventListener('DOMContentLoaded', function() {
     userContent += `My request:\n${userInput}\n\n`;
     if (targetAuthor) {
       userContent += `REMEMBER: Reply DIRECTLY to u/${targetAuthor}'s comment. If you cannot find their comment, say so. Do NOT invent content. Do NOT mention other users.`;
+    } else if (hasReplyIntent && isRedditContext && hasPageContext) {
+      userContent += `CRITICAL: Write a Reddit reply/comment to the post above. Output ONLY the comment text. No explanations. No analysis. No "Here is a reply". No quoting the original post. Just write what a real person would comment.`;
     } else {
       userContent += `Please answer based ONLY on the text provided above.`;
     }
