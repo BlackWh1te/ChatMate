@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Connection status
+  // Connection status (via background script to avoid CORS)
   async function checkConnection() {
     const settings = await getSettings();
     if (!settings.ollamaUrl) {
@@ -69,18 +69,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setStatus('checking', 'Checking...');
-    try {
-      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { method: 'GET', signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        const data = await res.json();
-        const modelCount = data.models ? data.models.length : 0;
+    chrome.runtime.sendMessage({action: 'detectModels', url: settings.ollamaUrl}, function(response) {
+      if (chrome.runtime.lastError || (response && response.error)) {
+        setStatus('offline', 'Offline');
+        return;
+      }
+      if (response && response.models) {
+        const modelCount = response.models.length;
         setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}`);
       } else {
-        setStatus('offline', 'Error');
+        setStatus('offline', 'No models');
       }
-    } catch (err) {
-      setStatus('offline', 'Offline');
-    }
+    });
   }
 
   function setStatus(type, text) {

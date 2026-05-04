@@ -78,7 +78,7 @@ chrome.commands.onCommand.addListener(function(command) {
   }
 });
 
-// Listen for messages from popup
+// Listen for messages from popup/settings
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'getPendingText') {
     chrome.storage.local.get(['pendingText'], function(result) {
@@ -88,4 +88,30 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     });
     return true; // Keep channel open for async response
   }
+
+  if (request.action === 'detectModels') {
+    detectModelsFromBackground(request.url).then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({error: err.message});
+    });
+    return true;
+  }
 });
+
+async function detectModelsFromBackground(url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`${url}/api/tags`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error('Failed to connect');
+    const data = await res.json();
+    const models = data.models || [];
+    const modelNames = models.map(m => m.name || m.model).filter(Boolean);
+    return {models: modelNames};
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}

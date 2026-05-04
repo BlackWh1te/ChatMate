@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
     displayHistory(allHistory);
   });
 
-  // Find models from Ollama
+  // Find models from Ollama (via background script to avoid CORS)
   detectModelsBtn.addEventListener('click', async function() {
     const url = ollamaUrlInput.value.trim();
     if (!url) {
@@ -98,24 +98,24 @@ document.addEventListener('DOMContentLoaded', function() {
     detectModelsBtn.disabled = true;
     detectModelsBtn.textContent = '🔍 Finding...';
 
-    try {
-      const res = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) throw new Error('Failed to connect');
-
-      const data = await res.json();
-      const models = data.models || [];
-      const modelNames = models.map(m => m.name || m.model).filter(Boolean);
-
-      chrome.storage.local.set({ models: modelNames });
-      populateModelSelect(modelSelect.value || modelNames[0] || 'llama2', modelNames);
-
-      showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}`);
-    } catch (err) {
-      showError(`Cannot connect: ${err.message}`);
-    } finally {
+    chrome.runtime.sendMessage({action: 'detectModels', url: url}, function(response) {
       detectModelsBtn.disabled = false;
       detectModelsBtn.textContent = '🔍 Find Models';
-    }
+
+      if (chrome.runtime.lastError || (response && response.error)) {
+        showError('Cannot connect: ' + (response?.error || chrome.runtime.lastError?.message || 'unknown error'));
+        return;
+      }
+
+      if (response && response.models) {
+        const modelNames = response.models;
+        chrome.storage.local.set({ models: modelNames });
+        populateModelSelect(modelSelect.value || modelNames[0] || 'llama2', modelNames);
+        showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}`);
+      } else {
+        showError('No models found');
+      }
+    });
   });
 
   function populateModelSelect(selectedModel, availableModels) {
