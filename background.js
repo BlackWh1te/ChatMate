@@ -32,6 +32,28 @@ chrome.runtime.onInstalled.addListener(function() {
         id: 5,
         name: 'Empathetic',
         prompt: 'Write a warm, understanding, and empathetic response'
+      },
+      {
+        id: 6,
+        name: 'Slack',
+        prompt: 'Write a short, casual, work-appropriate Slack message. Use emojis sparingly, be direct but friendly, and keep it brief enough to read quickly in a busy channel'
+      },
+      {
+        id: 7,
+        name: 'Reddit',
+        prompt: 'Write a helpful, conversational Reddit comment. Be authentic, avoid corporate speak, add value to the discussion, and match the tone of the subreddit community'
+      }
+    ],
+    referenceUrls: [
+      {
+        id: 1,
+        label: 'Slack communication tips',
+        url: 'https://slack.com/blog/collaboration/etiquette-tips-in-slack'
+      },
+      {
+        id: 2,
+        label: 'Reddit etiquette',
+        url: 'https://www.reddit.com/wiki/reddiquette/'
       }
     ]
   });

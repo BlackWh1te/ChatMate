@@ -33,6 +33,7 @@ That's it. The AI will write a reply for you.
 
 - **Turn on "Include page context"** in the popup when replying to forum posts or support tickets — the AI will know what the conversation is about
 - **Add Reference URLs** in Settings (like your company FAQ) — the AI will use them as background knowledge
+- **Use the Slack or Reddit tone** when on those sites — the AI will write in the right style automatically
 - **Not working?** Make sure Ollama is running (`ollama serve` in your terminal)
 
 ## License
