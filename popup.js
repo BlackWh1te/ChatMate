@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Connection status (via background script to avoid CORS)
+  // Connection status
   async function checkConnection() {
     const settings = await getSettings();
     if (!settings.ollamaUrl) {
@@ -69,18 +69,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setStatus('checking', 'Checking...');
-    chrome.runtime.sendMessage({action: 'detectModels', url: settings.ollamaUrl}, function(response) {
-      if (chrome.runtime.lastError || (response && response.error)) {
-        setStatus('offline', 'Offline');
-        return;
-      }
-      if (response && response.models) {
-        const modelCount = response.models.length;
-        setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}`);
-      } else {
-        setStatus('offline', 'No models');
-      }
-    });
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const modelCount = data.models ? data.models.length : 0;
+      setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}`);
+    } catch (err) {
+      setStatus('offline', 'Offline');
+    }
   }
 
   function setStatus(type, text) {

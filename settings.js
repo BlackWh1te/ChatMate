@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
     displayHistory(allHistory);
   });
 
-  // Find models from Ollama (via background script to avoid CORS)
+  // Find models from Ollama
   detectModelsBtn.addEventListener('click', async function() {
     const url = ollamaUrlInput.value.trim();
     if (!url) {
@@ -99,29 +99,35 @@ document.addEventListener('DOMContentLoaded', function() {
     detectModelsBtn.disabled = true;
     detectModelsBtn.textContent = '🔍 Finding...';
 
-    chrome.runtime.sendMessage({action: 'detectModels', url: url}, function(response) {
-      detectModelsBtn.disabled = false;
-      detectModelsBtn.textContent = '🔍 Find Models';
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(`${url}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-      if (chrome.runtime.lastError || (response && response.error)) {
-        showError('Cannot connect: ' + (response?.error || chrome.runtime.lastError?.message || 'unknown error'));
-        // Show manual input so user can type model name
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+      const data = await res.json();
+      const models = data.models || [];
+      const modelNames = models.map(m => m.name || m.model).filter(Boolean);
+
+      if (modelNames.length === 0) {
+        showError('No models found. Is Ollama running?');
         modelSelect.style.display = 'none';
         modelManual.style.display = 'block';
-        return;
-      }
-
-      if (response && response.models && response.models.length > 0) {
-        const modelNames = response.models;
+      } else {
         chrome.storage.local.set({ models: modelNames });
         populateModelSelect(modelNames[0], modelNames);
         showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}`);
-      } else {
-        showError('No models found');
-        modelSelect.style.display = 'none';
-        modelManual.style.display = 'block';
       }
-    });
+    } catch (err) {
+      showError(`Cannot connect: ${err.message}. Try typing your model name below.`);
+      modelSelect.style.display = 'none';
+      modelManual.style.display = 'block';
+    } finally {
+      detectModelsBtn.disabled = false;
+      detectModelsBtn.textContent = '🔍 Find Models';
+    }
   });
 
   function populateModelSelect(selectedModel, availableModels) {
