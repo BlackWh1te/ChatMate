@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updateActionButtons() {
-    const hasContent = responseCards[activeVariant].textContent.length > 0;
+    const hasContent = responseCards[activeVariant] && responseCards[activeVariant].textContent.length > 0;
     copyBtn.disabled = !hasContent;
     pasteBtn.disabled = !hasContent;
   }
@@ -922,6 +922,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Copy button
   copyBtn.addEventListener('click', async function() {
+    if (!responseCards[activeVariant]) return;
     const rawText = responseCards[activeVariant].textContent;
     if (!rawText) return;
     const text = cleanResponse(rawText);
@@ -936,6 +937,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Paste button - try to insert into page
   pasteBtn.addEventListener('click', async function() {
+    if (!responseCards[activeVariant]) return;
     const rawText = responseCards[activeVariant].textContent;
     if (!rawText) return;
     const text = cleanResponse(rawText);
@@ -953,6 +955,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Clean button - strip thinking tags and formatting from current response
   cleanBtn.addEventListener('click', function() {
+    if (!responseCards[activeVariant]) return;
     const rawText = responseCards[activeVariant].textContent;
     if (!rawText) return;
     const cleaned = cleanResponse(rawText);
