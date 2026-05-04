@@ -40,6 +40,15 @@ document.addEventListener('DOMContentLoaded', function() {
   let currentPageContext = null;
   let storedPageText = null;
 
+  // Built-in high-quality templates that ship with the extension
+  const BUILTIN_TEMPLATES = [
+    { id: '__casual__', name: 'Casual', prompt: 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions (it\'s, don\'t, gonna), and occasional humor. Avoid corporate speak, formal greetings, and sign-offs. Keep it under 3 sentences when possible. Match the energy of the message you are replying to.' },
+    { id: '__short__', name: 'Short & Sweet', prompt: 'Reply as briefly as possible while still being helpful. One or two sentences max. No fluff, no preamble, no "I hope this helps" endings. Get straight to the point. Sound like a busy person who values clarity.' },
+    { id: '__friendly__', name: 'Warm & Friendly', prompt: 'You are a warm, supportive friend. Use an encouraging, positive tone. Add a little personality — maybe an emoji or an exclamation point. Keep it genuine, not overly enthusiastic. Sound like someone who genuinely cares about the person they are talking to.' },
+    { id: '__witty__', name: 'Witty', prompt: 'You have a dry, clever sense of humor. Reply with a touch of wit or a light joke when appropriate. Keep it tasteful — never mean-spirited. Your replies should make the reader smile. Still be helpful and answer the question.' },
+    { id: '__professional__', name: 'Polished', prompt: 'You are a clear, articulate professional. Write concise, well-structured replies. Use proper grammar but avoid stiff corporate language. No "Dear Sir/Madam" or "Best regards." Just a straightforward, competent response that sounds like a smart colleague.' }
+  ];
+
   // Sidebar mode detection (running inside iframe injected into web pages)
   const isSidebarMode = new URLSearchParams(window.location.search).get('mode') === 'sidebar';
 
@@ -177,9 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
       checkConnection();
     }
 
-    // Load templates
-    const templates = result.templates || [];
-    templates.forEach(template => {
+    // Load built-in templates first, then custom ones
+    const customTemplates = result.templates || [];
+    [...BUILTIN_TEMPLATES, ...customTemplates].forEach(template => {
       const option = document.createElement('option');
       option.value = template.id;
       option.textContent = template.name;
@@ -381,26 +390,34 @@ document.addEventListener('DOMContentLoaded', function() {
     return text.substring(0, maxLen) + '... [truncated]';
   }
 
-  function buildFullPrompt(systemPrompt, userInput, pageContext, refContents, explicitPageText) {
-    let prompt = systemPrompt;
+  // Build Ollama /api/chat messages array
+  // Separates system instructions from user content for much better instruction-tuned model responses
+  function buildMessages(systemPrompt, userInput, pageContext, refContents, explicitPageText) {
+    const systemContent = systemPrompt || 'You are a helpful assistant.';
+
+    let userContent = '';
     if (refContents && refContents.length > 0) {
-      prompt += '\n\nReference materials:';
+      userContent += 'Reference materials:';
       refContents.forEach((ref, i) => {
-        prompt += `\n\n[${i + 1}] ${ref.label}:\n---\n${ref.text}\n---`;
+        userContent += `\n\n[${i + 1}] ${ref.label}:\n---\n${ref.text}\n---`;
       });
+      userContent += '\n\n';
     }
     if (explicitPageText) {
-      // User explicitly read the page for study/questions
       if (pageContext && pageContext.platform === 'reddit') {
-        prompt += `\n\nHere is a Reddit post with comments I am reading:\n---\n${explicitPageText}\n---`;
+        userContent += `Here is a Reddit post with comments I am reading:\n---\n${explicitPageText}\n---\n\n`;
       } else {
-        prompt += `\n\nHere is the full text of the page I am reading:\n---\n${explicitPageText}\n---`;
+        userContent += `Here is the full text of the page I am reading:\n---\n${explicitPageText}\n---\n\n`;
       }
     } else if (pageContext && pageContext.text) {
-      prompt += `\n\nHere is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---`;
+      userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;
     }
-    prompt += `\n\nMy question:\n${userInput}\n\nPlease answer based on the text above.`;
-    return prompt;
+    userContent += `My question:\n${userInput}\n\nPlease answer based on the text above.`;
+
+    return [
+      { role: 'system', content: systemContent },
+      { role: 'user', content: userContent }
+    ];
   }
 
   async function generateResponses(text, templateId) {
@@ -429,8 +446,8 @@ document.addEventListener('DOMContentLoaded', function() {
       // Fetch reference URLs content
       const refContents = await fetchReferenceUrls(settings.contextLimit);
 
-      // Get template prompt
-      let systemPrompt = 'Help me write a response to this message. Keep it natural and conversational';
+      // Get template prompt — use a strong default if no template selected
+      let systemPrompt = BUILTIN_TEMPLATES[0].prompt; // Default to "Casual"
       if (templateId) {
         const templates = await getTemplates();
         const template = templates.find(t => t.id == templateId);
@@ -507,14 +524,14 @@ document.addEventListener('DOMContentLoaded', function() {
       loadingText.innerHTML = 'Writing your reply<span class="thinking-text"></span>';
     }
 
-    const url = `${settings.ollamaUrl}/api/generate`;
+    const url = `${settings.ollamaUrl}/api/chat`;
 
     const maxTokens = settings.maxTokens || 500;
-    const fullPrompt = buildFullPrompt(systemPrompt, prompt, pageContext, refContents, storedPageText);
+    const messages = buildMessages(systemPrompt, prompt, pageContext, refContents, storedPageText);
 
     if (settings.streamingEnabled && total === 1) {
       // Streaming for single response
-      return await streamResponse(url, settings.modelName, fullPrompt, index, temperature, maxTokens);
+      return await streamResponse(url, settings.modelName, messages, index, temperature, maxTokens);
     } else {
       // Non-streaming for multiple variants
       const res = await fetch(url, {
@@ -522,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: settings.modelName,
-          prompt: fullPrompt,
+          messages: messages,
           stream: false,
           options: {
             temperature: temperature,
@@ -543,11 +560,11 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error(`Ollama error: ${res.status}`);
       }
       const data = await res.json();
-      return cleanResponse(data.response);
+      return cleanResponse(data.message?.content || data.response || '');
     }
   }
 
-  async function streamResponse(url, model, fullPrompt, index, temperature, maxTokens) {
+  async function streamResponse(url, model, messages, index, temperature, maxTokens) {
     responsesContainer.classList.add('show');
     responseCards[index].classList.add('active');
     loading.classList.remove('show');
@@ -557,7 +574,7 @@ document.addEventListener('DOMContentLoaded', function() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: model,
-        prompt: fullPrompt,
+        messages: messages,
         stream: true,
         options: {
           temperature: temperature,
@@ -569,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!res.ok) {
       if (res.status === 404) {
-        const available = await getAvailableModels({ollamaUrl: url.replace('/api/generate', '')});
+        const available = await getAvailableModels({ollamaUrl: url.replace('/api/chat', '')});
         const hint = available.length > 0
           ? ` You have: ${available.join(', ')}`
           : ' Check your model name in Settings, or run "ollama list" in your terminal.';
@@ -592,8 +609,10 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const line of lines) {
         try {
           const data = JSON.parse(line);
-          if (data.response) {
-            fullText += data.response;
+          // /api/chat returns message.content, /api/generate returns response
+          const text = data.message?.content || data.response || '';
+          if (text) {
+            fullText += text;
             responseCards[index].textContent = fullText;
             responseCards[index].scrollTop = responseCards[index].scrollHeight;
           }
@@ -627,6 +646,12 @@ document.addEventListener('DOMContentLoaded', function() {
       .replace(/^assistant:\s*/i, '')
       .replace(/^user:\s*/i, '')
       .replace(/^system:\s*/i, '')
+      // Strip common chat template special tokens
+      .replace(/<\|im_start\|>/gi, '')
+      .replace(/<\|im_end\|>/gi, '')
+      .replace(/<\|eot_id\|>/gi, '')
+      .replace(/<\|start_header_id\|>/gi, '')
+      .replace(/<\|end_header_id\|>/gi, '')
       // Remove markdown code block wrappers if present
       .replace(/```(?:json|text|markdown)?\n?/gi, '')
       // Clean up extra blank lines
@@ -735,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ], function(result) {
         resolve({
           ollamaUrl: result.ollamaUrl,
-          modelName: result.modelName || 'llama2',
+          modelName: result.modelName || 'llama3',
           streamingEnabled: result.streamingEnabled !== false,
           variantCount: result.variantCount || 1,
           temperature: result.temperature || 0.7,
@@ -749,7 +774,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function getTemplates() {
     return new Promise((resolve) => {
       chrome.storage.local.get(['templates'], function(result) {
-        resolve(result.templates || []);
+        const custom = result.templates || [];
+        resolve([...BUILTIN_TEMPLATES, ...custom]);
       });
     });
   }

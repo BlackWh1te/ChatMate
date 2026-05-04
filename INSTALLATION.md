@@ -12,19 +12,21 @@
    ```
    ollama pull llama3
    ```
+   For the best, most natural-sounding replies, use modern instruction-tuned models like `llama3.1`, `mistral`, `phi4`, or `gemma2`. Older models like `llama2` tend to sound robotic.
 3. **Start Ollama** — Run:
    ```
    ollama serve
    ```
 4. **Install the extension** — Open Chrome → `chrome://extensions/` → turn on **Developer mode** → click **Load unpacked** → select this folder
-5. **Connect** — Click the ChatMate icon → **Settings** → enter `http://localhost:11434` → click **Find Models** → pick one → **Save**
+5. **Connect** — The ChatMate sidebar appears on the right side of every page. Click **⚙️ Settings** in the footer → enter `http://localhost:11434` → click **Find Models** → pick one → **Save**
 
 ## How to use
 
 1. Highlight text on any website
-2. Click the ChatMate icon
-3. Click **Write a Reply**
-4. Copy or paste the reply into your chat
+2. Click **📋 Grab** in the sidebar
+3. Pick a **Tone** (Casual, Short & Sweet, Warm, Witty, or Polished)
+4. Click **✨ Write a Reply**
+5. Copy or paste the reply into your chat
 
 ## Not working?
 

@@ -4,7 +4,8 @@ Get AI help writing replies on any website. Works with your own computer's AI (v
 
 ## What it does
 
-- Highlight any text on a website → get a smart reply suggestion
+- **Always-visible sidebar** — ChatMate sits on the right edge of every page. No more clicking a tiny toolbar icon.
+- Highlight any text → click **Grab** → get a natural, human-sounding reply
 - Works on Facebook, LinkedIn, WhatsApp, Slack, Discord, and everywhere else
 - Reads the current page to give better, more accurate replies
 - One click to copy or paste the reply into your chat
@@ -15,6 +16,8 @@ Get AI help writing replies on any website. Works with your own computer's AI (v
 2. **Get a model** — Open your terminal and run: `ollama pull llama3`
 3. **Start Ollama** — Run: `ollama serve`
 
+> For the best replies, use modern instruction-tuned models like `llama3.1`, `mistral`, `phi4`, or `gemma2`. Older models like `llama2` tend to sound robotic.
+
 ## Install the Extension
 
 1. Open Chrome → go to `chrome://extensions/`
@@ -23,17 +26,17 @@ Get AI help writing replies on any website. Works with your own computer's AI (v
 
 ## First Use
 
-1. Click the ChatMate icon in Chrome
-2. Go to **Settings** → enter `http://localhost:11434` → click **Detect** → pick a model → **Save**
-3. Highlight text on any page, open ChatMate, click **Generate Response**
+1. The ChatMate sidebar appears automatically on the right side of every page
+2. Click the **⚙️ Settings** link in the footer → enter `http://localhost:11434` → click **Find Models** → pick a model → **Save**
+3. Highlight text on any page, click **📋 Grab**, then **✨ Write a Reply**
 
 That's it. The AI will write a reply for you.
 
 ## Tips
 
-- **Turn on "Include page context"** in the popup when replying to forum posts or support tickets — the AI will know what the conversation is about
+- **Pick a tone** — Choose from built-in styles (Casual, Short & Sweet, Warm, Witty, Polished) to match your voice
+- **Turn on "Use this page for context"** when replying to forum posts or support tickets — the AI will know what the conversation is about
 - **Add Reference URLs** in Settings (like your company FAQ) — the AI will use them as background knowledge
-- **Use the Slack or Reddit tone** when on those sites — the AI will write in the right style automatically
 - **Not working?** Make sure Ollama is running (`ollama serve` in your terminal)
 
 ## License
