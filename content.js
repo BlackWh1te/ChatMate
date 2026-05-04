@@ -310,36 +310,41 @@ document.addEventListener('selectionchange', function() {
 
 // --- ChatMate Sidebar Injection ---
 (function initSidebar() {
-  // Don't inject in iframes (nested contexts cause issues)
   if (window.self !== window.top) return;
-  // Don't double-inject
   if (document.getElementById('chatmate-sidebar-container')) return;
 
   const SIDEBAR_WIDTH = 440;
+  const SIDEBAR_MARGIN = 12;
   const SIDEBAR_ZINDEX = 2147483647;
   const POPUP_URL = chrome.runtime.getURL('popup.html?mode=sidebar');
 
-  // Create sidebar container
-  const container = document.createElement('div');
-  container.id = 'chatmate-sidebar-container';
-  container.style.cssText = `
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: ${SIDEBAR_WIDTH}px;
-    height: 100vh;
-    z-index: ${SIDEBAR_ZINDEX};
-    background: transparent;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    transform: translateX(0);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  `;
-
+  let expanded = true;
   let useShadowDOM = false;
   let iframe = null;
   let shadowHost = null;
 
-  // Try iframe first (best isolation, but blocked by strict CSP on some sites)
+  // --- Container (expanded sidebar) ---
+  const container = document.createElement('div');
+  container.id = 'chatmate-sidebar-container';
+  container.style.cssText = `
+    position: fixed;
+    top: ${SIDEBAR_MARGIN}px;
+    right: ${SIDEBAR_MARGIN}px;
+    bottom: ${SIDEBAR_MARGIN}px;
+    width: ${SIDEBAR_WIDTH}px;
+    z-index: ${SIDEBAR_ZINDEX};
+    border-radius: 16px 0 0 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #ffffff;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+    transform: translateX(0);
+    opacity: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+
+  // --- Iframe ---
   iframe = document.createElement('iframe');
   iframe.id = 'chatmate-sidebar-iframe';
   iframe.src = POPUP_URL;
@@ -350,46 +355,133 @@ document.addEventListener('selectionchange', function() {
     width: 100%;
     height: 100%;
     border: none;
-    background: #fff;
+    background: transparent;
     display: block;
   `;
   container.appendChild(iframe);
 
-  // Create toggle button (always visible)
-  const toggle = document.createElement('div');
-  toggle.id = 'chatmate-sidebar-toggle';
-  toggle.innerHTML = '💬';
-  toggle.title = 'Toggle ChatMate sidebar';
-  toggle.style.cssText = `
+  // --- Minimized floating button ---
+  const miniBtn = document.createElement('div');
+  miniBtn.id = 'chatmate-mini-btn';
+  miniBtn.title = 'Open ChatMate';
+  miniBtn.innerHTML = '💬';
+  miniBtn.style.cssText = `
     position: fixed;
     top: 100px;
-    right: ${SIDEBAR_WIDTH}px;
-    width: 36px;
-    height: 40px;
-    z-index: ${SIDEBAR_ZINDEX - 1};
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    z-index: ${SIDEBAR_ZINDEX};
     background: #0d6efd;
     color: #fff;
-    border-radius: 6px 0 0 6px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 18px;
-    box-shadow: -2px 2px 6px rgba(0,0,0,0.2);
-    transition: right 0.3s ease;
+    font-size: 22px;
+    box-shadow: 0 4px 16px rgba(13,110,253,0.35);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
     user-select: none;
   `;
 
-  // Append to page
-  document.body.appendChild(container);
-  document.body.appendChild(toggle);
+  // Tooltip for mini button
+  const miniTooltip = document.createElement('div');
+  miniTooltip.id = 'chatmate-mini-tooltip';
+  miniTooltip.textContent = 'ChatMate';
+  miniTooltip.style.cssText = `
+    position: fixed;
+    top: 100px;
+    right: 76px;
+    z-index: ${SIDEBAR_ZINDEX};
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    user-select: none;
+  `;
 
-  // Detect iframe load failure (blocked by CSP or Chrome security)
+  miniBtn.addEventListener('mouseenter', () => { miniTooltip.style.opacity = '1'; });
+  miniBtn.addEventListener('mouseleave', () => { miniTooltip.style.opacity = '0'; });
+
+  // Hover scale effect
+  miniBtn.addEventListener('mouseenter', () => {
+    if (miniBtn.style.opacity !== '0') {
+      miniBtn.style.transform = 'scale(1.1)';
+    }
+  });
+  miniBtn.addEventListener('mouseleave', () => {
+    if (miniBtn.style.opacity !== '0') {
+      miniBtn.style.transform = 'scale(1)';
+    }
+  });
+
+  document.body.appendChild(container);
+  document.body.appendChild(miniBtn);
+  document.body.appendChild(miniTooltip);
+
+  // --- Dark mode theming ---
+  function applySidebarTheme(theme) {
+    const isDark = theme === 'dark';
+    if (isDark) {
+      container.style.background = '#1a1a2e';
+      container.style.borderColor = 'rgba(255,255,255,0.08)';
+      container.style.boxShadow = '0 8px 32px rgba(0,0,0,0.45)';
+      miniBtn.style.background = '#e94560';
+      miniBtn.style.boxShadow = '0 4px 16px rgba(233,69,96,0.4)';
+    } else {
+      container.style.background = '#ffffff';
+      container.style.borderColor = 'rgba(0,0,0,0.08)';
+      container.style.boxShadow = '0 8px 32px rgba(0,0,0,0.15)';
+      miniBtn.style.background = '#0d6efd';
+      miniBtn.style.boxShadow = '0 4px 16px rgba(13,110,253,0.35)';
+    }
+  }
+
+  // Listen for theme changes from popup
+  chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area === 'local' && changes.theme) {
+      applySidebarTheme(changes.theme.newValue);
+    }
+  });
+
+  // --- Minimize / Expand ---
+  function minimizeSidebar() {
+    expanded = false;
+    container.style.transform = `translateX(calc(100% + ${SIDEBAR_MARGIN * 3}px))`;
+    container.style.opacity = '0';
+    miniBtn.style.opacity = '1';
+    miniBtn.style.pointerEvents = 'auto';
+    miniBtn.style.transform = 'scale(1)';
+    chrome.storage.local.set({sidebarExpanded: false});
+  }
+
+  function expandSidebar() {
+    expanded = true;
+    container.style.transform = 'translateX(0)';
+    container.style.opacity = '1';
+    miniBtn.style.opacity = '0';
+    miniBtn.style.pointerEvents = 'none';
+    miniBtn.style.transform = 'scale(0.8)';
+    miniTooltip.style.opacity = '0';
+    chrome.storage.local.set({sidebarExpanded: true});
+  }
+
+  miniBtn.addEventListener('click', expandSidebar);
+
+  // Detect iframe load failure
   let iframeReady = false;
   const iframeCheckTimeout = setTimeout(function() {
-    if (!iframeReady) {
-      switchToShadowDOM();
-    }
+    if (!iframeReady) switchToShadowDOM();
   }, 5000);
 
   iframe.addEventListener('load', function() {
@@ -397,13 +489,11 @@ document.addEventListener('selectionchange', function() {
     clearTimeout(iframeCheckTimeout);
   });
 
+  // --- Shadow DOM fallback ---
   function switchToShadowDOM() {
     if (useShadowDOM) return;
     useShadowDOM = true;
-
-    if (iframe && iframe.parentNode) {
-      iframe.parentNode.removeChild(iframe);
-    }
+    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
 
     shadowHost = document.createElement('div');
     shadowHost.id = 'chatmate-shadow-host';
@@ -417,13 +507,13 @@ document.addEventListener('selectionchange', function() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         .fallback-sidebar {
           width: 100%;
-          height: 100vh;
-          background: #f8f9fa;
+          height: 100%;
+          background: var(--fb-bg, #f8f9fa);
           display: flex;
           flex-direction: column;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           font-size: 14px;
-          color: #212529;
+          color: var(--fb-text, #212529);
         }
         .fallback-header {
           height: 36px;
@@ -438,98 +528,69 @@ document.addEventListener('selectionchange', function() {
           flex-shrink: 0;
         }
         .fallback-header button {
-          background: none;
-          border: none;
-          color: #fff;
-          font-size: 16px;
-          cursor: pointer;
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          background: none; border: none; color: #fff;
+          font-size: 16px; cursor: pointer;
+          width: 28px; height: 28px;
+          display: flex; align-items: center; justify-content: center;
           border-radius: 4px;
         }
         .fallback-header button:hover { background: rgba(255,255,255,0.2); }
         .fallback-body {
-          flex: 1;
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
+          flex: 1; padding: 16px;
+          display: flex; flex-direction: column; gap: 12px;
           overflow-y: auto;
         }
         .fallback-input {
-          width: 100%;
-          padding: 10px;
-          border: 1px solid #dee2e6;
+          width: 100%; padding: 10px;
+          border: 1px solid var(--fb-border, #dee2e6);
           border-radius: 8px;
-          font-family: inherit;
-          font-size: 14px;
-          resize: vertical;
-          min-height: 80px;
+          font-family: inherit; font-size: 14px;
+          resize: vertical; min-height: 80px;
+          background: var(--fb-card, #fff);
+          color: var(--fb-text, #212529);
         }
         .fallback-btn {
-          background: #0d6efd;
-          color: white;
-          border: none;
-          padding: 10px 16px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
+          background: #0d6efd; color: white;
+          border: none; padding: 10px 16px;
+          border-radius: 8px; cursor: pointer;
+          font-size: 14px; font-weight: 500;
         }
         .fallback-btn:hover { background: #0b5ed7; }
         .fallback-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .fallback-response {
-          background: #f1f3f4;
-          padding: 12px;
-          border-radius: 8px;
-          font-size: 14px;
-          line-height: 1.6;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-          border: 1px solid #dee2e6;
-          max-height: 300px;
-          overflow-y: auto;
-          display: none;
+          background: var(--fb-response, #f1f3f4);
+          padding: 12px; border-radius: 8px;
+          font-size: 14px; line-height: 1.6;
+          white-space: pre-wrap; word-wrap: break-word;
+          border: 1px solid var(--fb-border, #dee2e6);
+          max-height: 300px; overflow-y: auto;
+          display: none; color: var(--fb-text, #212529);
         }
         .fallback-response.show { display: block; }
         .fallback-error {
-          background: #f8d7da;
-          color: #721c24;
-          padding: 10px;
-          border-radius: 8px;
-          font-size: 13px;
-          display: none;
-          border: 1px solid rgba(220, 53, 69, 0.3);
+          background: #f8d7da; color: #721c24;
+          padding: 10px; border-radius: 8px;
+          font-size: 13px; display: none;
+          border: 1px solid rgba(220,53,69,0.3);
         }
         .fallback-error.show { display: block; }
         .fallback-info {
-          font-size: 12px;
-          color: #6c757d;
-          line-height: 1.5;
+          font-size: 12px; color: var(--fb-muted, #6c757d); line-height: 1.5;
         }
-        .fallback-actions {
-          display: flex;
-          gap: 8px;
-        }
+        .fallback-actions { display: flex; gap: 8px; }
         .fallback-secondary {
-          background: #f1f3f4;
-          color: #212529;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 13px;
-          flex: 1;
+          background: var(--fb-response, #f1f3f4);
+          color: var(--fb-text, #212529);
+          border: none; padding: 8px 12px;
+          border-radius: 8px; cursor: pointer;
+          font-size: 13px; flex: 1;
         }
-        .fallback-secondary:hover { background: #dee2e6; }
+        .fallback-secondary:hover { background: var(--fb-border, #dee2e6); }
       </style>
-      <div class="fallback-sidebar">
+      <div class="fallback-sidebar" id="fb-root">
         <div class="fallback-header">
           <span>💬 ChatMate</span>
-          <button id="fallback-close" title="Hide sidebar">✕</button>
+          <button id="fallback-minimize" title="Minimize sidebar">🗕</button>
         </div>
         <div class="fallback-body">
           <div class="fallback-info">
@@ -548,6 +609,7 @@ document.addEventListener('selectionchange', function() {
       </div>
     `;
 
+    const fbRoot = shadow.getElementById('fb-root');
     const fallbackInput = shadow.getElementById('fallback-input');
     const fallbackGenerate = shadow.getElementById('fallback-generate');
     const fallbackError = shadow.getElementById('fallback-error');
@@ -555,7 +617,7 @@ document.addEventListener('selectionchange', function() {
     const fallbackActions = shadow.getElementById('fallback-actions');
     const fallbackCopy = shadow.getElementById('fallback-copy');
     const fallbackPaste = shadow.getElementById('fallback-paste');
-    const fallbackClose = shadow.getElementById('fallback-close');
+    const fallbackMinimize = shadow.getElementById('fallback-minimize');
 
     let fallbackSettings = null;
     let fallbackAbort = null;
@@ -568,9 +630,28 @@ document.addEventListener('selectionchange', function() {
       fallbackError.classList.remove('show');
     }
 
+    function applyFallbackTheme(theme) {
+      const isDark = theme === 'dark';
+      if (isDark) {
+        fbRoot.style.setProperty('--fb-bg', '#1a1a2e');
+        fbRoot.style.setProperty('--fb-text', '#e0e0e0');
+        fbRoot.style.setProperty('--fb-card', '#16213e');
+        fbRoot.style.setProperty('--fb-border', '#0f3460');
+        fbRoot.style.setProperty('--fb-response', '#0f3460');
+        fbRoot.style.setProperty('--fb-muted', '#a0a0a0');
+      } else {
+        fbRoot.style.setProperty('--fb-bg', '#f8f9fa');
+        fbRoot.style.setProperty('--fb-text', '#212529');
+        fbRoot.style.setProperty('--fb-card', '#ffffff');
+        fbRoot.style.setProperty('--fb-border', '#dee2e6');
+        fbRoot.style.setProperty('--fb-response', '#f1f3f4');
+        fbRoot.style.setProperty('--fb-muted', '#6c757d');
+      }
+    }
+
     chrome.storage.local.get([
       'ollamaUrl', 'modelName', 'temperature', 'maxTokens',
-      'templates', 'contextLimit', 'skipPromotedReddit'
+      'templates', 'contextLimit', 'skipPromotedReddit', 'theme'
     ], function(result) {
       fallbackSettings = {
         ollamaUrl: result.ollamaUrl,
@@ -580,7 +661,16 @@ document.addEventListener('selectionchange', function() {
         contextLimit: result.contextLimit || 4000,
         skipPromotedReddit: result.skipPromotedReddit !== false
       };
+      applyFallbackTheme(result.theme || 'light');
     });
+
+    chrome.storage.onChanged.addListener(function(changes, area) {
+      if (area === 'local' && changes.theme) {
+        applyFallbackTheme(changes.theme.newValue);
+      }
+    });
+
+    fallbackMinimize.addEventListener('click', minimizeSidebar);
 
     fallbackGenerate.addEventListener('click', async function() {
       if (fallbackGenerate.disabled) {
@@ -592,13 +682,9 @@ document.addEventListener('selectionchange', function() {
       }
 
       const text = fallbackInput.value.trim();
-      if (!text) {
-        showFallbackError('Type something first');
-        return;
-      }
+      if (!text) { showFallbackError('Type something first'); return; }
       if (!fallbackSettings || !fallbackSettings.ollamaUrl) {
-        showFallbackError('Open Settings and connect to your AI server');
-        return;
+        showFallbackError('Open Settings and connect to your AI server'); return;
       }
 
       hideFallbackError();
@@ -607,7 +693,6 @@ document.addEventListener('selectionchange', function() {
       fallbackResponse.classList.remove('show');
       fallbackActions.style.display = 'none';
       fallbackResponse.textContent = '';
-
       fallbackAbort = new AbortController();
 
       let systemPrompt = 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions, and occasional humor. Avoid corporate speak. Keep it under 3 sentences when possible.';
@@ -638,19 +723,14 @@ document.addEventListener('selectionchange', function() {
           }),
           signal: fallbackAbort.signal
         });
-
-        if (!res.ok) {
-          throw new Error(`Ollama error: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
         const data = await res.json();
         const reply = data.message?.content || data.response || '';
         fallbackResponse.textContent = reply;
         fallbackResponse.classList.add('show');
         fallbackActions.style.display = 'flex';
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          showFallbackError(err.message);
-        }
+        if (err.name !== 'AbortError') showFallbackError(err.message);
       } finally {
         fallbackGenerate.disabled = false;
         fallbackGenerate.textContent = '✨ Write a Reply';
@@ -659,47 +739,29 @@ document.addEventListener('selectionchange', function() {
     });
 
     fallbackCopy.addEventListener('click', async function() {
-      try {
-        await navigator.clipboard.writeText(fallbackResponse.textContent);
-      } catch (e) {}
+      try { await navigator.clipboard.writeText(fallbackResponse.textContent); } catch (e) {}
     });
 
     fallbackPaste.addEventListener('click', function() {
       const inserted = insertTextIntoActiveElement(fallbackResponse.textContent);
-      if (!inserted) {
-        navigator.clipboard.writeText(fallbackResponse.textContent);
-      }
-    });
-
-    fallbackClose.addEventListener('click', function() {
-      toggle.click();
+      if (!inserted) navigator.clipboard.writeText(fallbackResponse.textContent);
     });
   }
 
-  // Visibility state
-  let visible = true;
-  chrome.storage.local.get(['sidebarVisible'], function(result) {
-    if (result.sidebarVisible === false) {
-      visible = false;
-      container.style.transform = `translateX(100%)`;
-      toggle.style.right = '0';
+  // --- Restore saved state ---
+  chrome.storage.local.get(['sidebarExpanded', 'theme'], function(result) {
+    applySidebarTheme(result.theme || 'light');
+    if (result.sidebarExpanded === false) {
+      expanded = false;
+      container.style.transform = `translateX(calc(100% + ${SIDEBAR_MARGIN * 3}px))`;
+      container.style.opacity = '0';
+      miniBtn.style.opacity = '1';
+      miniBtn.style.pointerEvents = 'auto';
+      miniBtn.style.transform = 'scale(1)';
     }
   });
 
-  // Toggle handler
-  toggle.addEventListener('click', function() {
-    visible = !visible;
-    if (visible) {
-      container.style.transform = 'translateX(0)';
-      toggle.style.right = SIDEBAR_WIDTH + 'px';
-    } else {
-      container.style.transform = 'translateX(100%)';
-      toggle.style.right = '0';
-    }
-    chrome.storage.local.set({sidebarVisible: visible});
-  });
-
-  // Listen for messages from sidebar iframe (popup.html running inside)
+  // --- Message handlers ---
   window.addEventListener('message', function(event) {
     if (useShadowDOM) return;
     if (!iframe || !iframe.contentWindow) return;
@@ -718,22 +780,17 @@ document.addEventListener('selectionchange', function() {
     }
 
     if (event.source && event.source.postMessage) {
-      event.source.postMessage({
-        _chatmateResponse: true,
-        _id: msg._id,
-        result: result
-      }, '*');
+      event.source.postMessage({ _chatmateResponse: true, _id: msg._id, result: result }, '*');
     }
   });
 
-  // Handle sidebar toggle requests from popup.html
   window.addEventListener('message', function(event) {
     if (useShadowDOM) return;
     if (!iframe || !iframe.contentWindow) return;
     if (event.source !== iframe.contentWindow) return;
     const msg = event.data;
     if (msg && msg.action === 'toggleSidebar') {
-      toggle.click();
+      expanded ? minimizeSidebar() : expandSidebar();
     }
   });
 })();

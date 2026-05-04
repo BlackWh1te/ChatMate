@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const readPageBtn = document.getElementById('read-page-btn');
   const pagePreview = document.getElementById('page-preview');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
-  const topbarCloseBtn = document.getElementById('topbar-close-btn');
+  const topbarMinimizeBtn = document.getElementById('topbar-minimize-btn');
   const grabTextBtn = document.getElementById('grab-text-btn');
 
   // State
@@ -117,15 +117,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sidebarCloseBtn) sidebarCloseBtn.style.display = 'inline-flex';
   }
 
-  // Sidebar close buttons (both in header and topbar)
-  function closeSidebar() {
-    window.parent.postMessage({action: 'toggleSidebar', visible: false}, '*');
+  // Sidebar minimize buttons (both in header and topbar)
+  function minimizeSidebar() {
+    window.parent.postMessage({action: 'toggleSidebar'}, '*');
   }
   if (sidebarCloseBtn) {
-    sidebarCloseBtn.addEventListener('click', closeSidebar);
+    sidebarCloseBtn.addEventListener('click', minimizeSidebar);
   }
-  if (topbarCloseBtn) {
-    topbarCloseBtn.addEventListener('click', closeSidebar);
+  if (topbarMinimizeBtn) {
+    topbarMinimizeBtn.addEventListener('click', minimizeSidebar);
   }
 
   // Grab selected text from page
