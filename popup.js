@@ -59,6 +59,24 @@ document.addEventListener('DOMContentLoaded', function() {
     { id: '__professional__', name: 'Polished', prompt: 'You are a clear, articulate professional. Write concise, well-structured replies. Use proper grammar but avoid stiff corporate language. No "Dear Sir/Madam" or "Best regards." Just a straightforward, competent response that sounds like a smart colleague. ' + ON_TOPIC_GUARD }
   ];
 
+  // Build a Markdown formatting instruction from enabled Reddit formatting toggles.
+  // Only active when the page context indicates we are on Reddit.
+  function buildFormattingInstruction(fmt) {
+    if (!fmt) return '';
+    const items = [];
+    if (fmt.bold) items.push('bold (**text**)');
+    if (fmt.italic) items.push('italic (*text*)');
+    if (fmt.heading) items.push('headings (# ## ###)');
+    if (fmt.bullet) items.push('bullet lists (* item)');
+    if (fmt.numlist) items.push('numbered lists (1. item)');
+    if (fmt.quote) items.push('quote blocks (> text)');
+    if (fmt.inlinecode) items.push('inline code (`code`)');
+    if (fmt.codeblock) items.push('code blocks (```code```)');
+    if (fmt.table) items.push('tables (| col |)');
+    if (items.length === 0) return '';
+    return ' FORMATTING: When writing your Reddit reply, you MAY use the following Markdown styles where appropriate: ' + items.join(', ') + '. Do NOT use styles that are not listed here. Use formatting naturally — do not over-format.';
+  }
+
   // Vision-capable Ollama model prefixes (checked case-insensitively)
   const VISION_MODELS = [
     'llava', 'bakllava', 'moondream',
@@ -246,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load settings, templates, check connection
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'streamingEnabled',
-    'variantCount', 'temperature', 'maxTokens'
+    'variantCount', 'temperature', 'maxTokens', 'redditFormatting'
   ], function(result) {
     currentSettings = {
       ollamaUrl: result.ollamaUrl,
@@ -254,7 +272,8 @@ document.addEventListener('DOMContentLoaded', function() {
       streamingEnabled: result.streamingEnabled !== false,
       variantCount: result.variantCount || 1,
       temperature: result.temperature || 0.7,
-      maxTokens: result.maxTokens || 500
+      maxTokens: result.maxTokens || 500,
+      redditFormatting: result.redditFormatting || {}
     };
 
     if (!result.ollamaUrl) {
@@ -670,6 +689,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (template) systemPrompt = template.prompt;
       }
 
+      // If on Reddit and formatting toggles are enabled, append formatting instruction
+      const isRedditContext = (currentPageContext && currentPageContext.platform === 'reddit') ||
+        (storedPageText && storedPageText.includes('[POST TITLE]'));
+      if (isRedditContext) {
+        const fmtInstr = buildFormattingInstruction(settings.redditFormatting);
+        if (fmtInstr) {
+          systemPrompt += '\n\n' + fmtInstr;
+        }
+      }
+
       const variantCount = settings.variantCount || 1;
       const promises = [];
 
@@ -975,6 +1004,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (imageCount > 0) {
       footerText += ` • ${imageCount} image${imageCount > 1 ? 's' : ''}`;
     }
+    // Show formatting badge when on Reddit with active Markdown toggles
+    const isRedditCtx = (pageContext && pageContext.platform === 'reddit') ||
+      (storedPageText && storedPageText.includes('[POST TITLE]'));
+    if (isRedditCtx && settings.redditFormatting) {
+      const fmtKeys = Object.keys(settings.redditFormatting).filter(k => settings.redditFormatting[k]);
+      if (fmtKeys.length > 0) {
+        footerText += ` • 📝 ${fmtKeys.length} format${fmtKeys.length > 1 ? 's' : ''}`;
+      }
+    }
     footerInfo.textContent = footerText;
   }
 
@@ -1031,7 +1069,8 @@ document.addEventListener('DOMContentLoaded', function() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
         'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
-        'temperature', 'maxTokens', 'contextLimit', 'skipPromotedReddit'
+        'temperature', 'maxTokens', 'contextLimit', 'skipPromotedReddit',
+        'redditFormatting'
       ], async function(result) {
         const base = {
           ollamaUrl: result.ollamaUrl,
@@ -1041,7 +1080,8 @@ document.addEventListener('DOMContentLoaded', function() {
           temperature: result.temperature || 0.7,
           maxTokens: result.maxTokens || 500,
           contextLimit: result.contextLimit || 4000,
-          skipPromotedReddit: result.skipPromotedReddit !== false
+          skipPromotedReddit: result.skipPromotedReddit !== false,
+          redditFormatting: result.redditFormatting || {}
         };
         // Auto-resolve model if missing / stale
         if (base.ollamaUrl) {

@@ -30,6 +30,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const success = document.getElementById('success');
   const error = document.getElementById('error');
 
+  // Reddit formatting toggles
+  const fmtBold = document.getElementById('fmt-bold');
+  const fmtItalic = document.getElementById('fmt-italic');
+  const fmtHeading = document.getElementById('fmt-heading');
+  const fmtBullet = document.getElementById('fmt-bullet');
+  const fmtNumlist = document.getElementById('fmt-numlist');
+  const fmtQuote = document.getElementById('fmt-quote');
+  const fmtInlinecode = document.getElementById('fmt-inlinecode');
+  const fmtCodeblock = document.getElementById('fmt-codeblock');
+  const fmtTable = document.getElementById('fmt-table');
+
   // Reference URLs
   const refUrlInput = document.getElementById('ref-url-input');
   const refUrlLabelInput = document.getElementById('ref-url-label');
@@ -84,7 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
     'streamingEnabled', 'variantCount', 'temperature', 'maxTokens',
-    'referenceUrls', 'contextLimit', 'skipPromotedReddit'
+    'referenceUrls', 'contextLimit', 'skipPromotedReddit',
+    'redditFormatting'
   ], function(result) {
     ollamaUrlInput.value = result.ollamaUrl || '';
     streamingToggle.checked = result.streamingEnabled !== false;
@@ -96,6 +108,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skipPromotedReddit) {
       skipPromotedReddit.checked = result.skipPromotedReddit !== false;
     }
+
+    // Load Reddit formatting (default all false)
+    const fmt = result.redditFormatting || {};
+    if (fmtBold) fmtBold.checked = !!fmt.bold;
+    if (fmtItalic) fmtItalic.checked = !!fmt.italic;
+    if (fmtHeading) fmtHeading.checked = !!fmt.heading;
+    if (fmtBullet) fmtBullet.checked = !!fmt.bullet;
+    if (fmtNumlist) fmtNumlist.checked = !!fmt.numlist;
+    if (fmtQuote) fmtQuote.checked = !!fmt.quote;
+    if (fmtInlinecode) fmtInlinecode.checked = !!fmt.inlinecode;
+    if (fmtCodeblock) fmtCodeblock.checked = !!fmt.codeblock;
+    if (fmtTable) fmtTable.checked = !!fmt.table;
 
     // Populate model dropdown
     populateModelSelect(result.modelName || '', result.models || []);
@@ -221,7 +245,18 @@ document.addEventListener('DOMContentLoaded', function() {
       temperature: temp,
       maxTokens: tokens,
       contextLimit: ctxLimit,
-      skipPromotedReddit: skipPromotedReddit ? skipPromotedReddit.checked : true
+      skipPromotedReddit: skipPromotedReddit ? skipPromotedReddit.checked : true,
+      redditFormatting: {
+        bold: fmtBold ? fmtBold.checked : false,
+        italic: fmtItalic ? fmtItalic.checked : false,
+        heading: fmtHeading ? fmtHeading.checked : false,
+        bullet: fmtBullet ? fmtBullet.checked : false,
+        numlist: fmtNumlist ? fmtNumlist.checked : false,
+        quote: fmtQuote ? fmtQuote.checked : false,
+        inlinecode: fmtInlinecode ? fmtInlinecode.checked : false,
+        codeblock: fmtCodeblock ? fmtCodeblock.checked : false,
+        table: fmtTable ? fmtTable.checked : false
+      }
     }, function() {
       showSuccess('Saved!');
     });

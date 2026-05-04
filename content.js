@@ -859,9 +859,27 @@ document.addEventListener('selectionchange', function() {
       }
     }
 
+    // Build a Markdown formatting instruction from enabled Reddit formatting toggles.
+    function buildFormattingInstruction(fmt) {
+      if (!fmt) return '';
+      const items = [];
+      if (fmt.bold) items.push('bold (**text**)');
+      if (fmt.italic) items.push('italic (*text*)');
+      if (fmt.heading) items.push('headings (# ## ###)');
+      if (fmt.bullet) items.push('bullet lists (* item)');
+      if (fmt.numlist) items.push('numbered lists (1. item)');
+      if (fmt.quote) items.push('quote blocks (> text)');
+      if (fmt.inlinecode) items.push('inline code (`code`)');
+      if (fmt.codeblock) items.push('code blocks (```code```)');
+      if (fmt.table) items.push('tables (| col |)');
+      if (items.length === 0) return '';
+      return ' FORMATTING: When writing your Reddit reply, you MAY use the following Markdown styles where appropriate: ' + items.join(', ') + '. Do NOT use styles that are not listed here. Use formatting naturally — do not over-format.';
+    }
+
     chrome.storage.local.get([
       'ollamaUrl', 'modelName', 'temperature', 'maxTokens',
-      'templates', 'contextLimit', 'skipPromotedReddit', 'theme'
+      'templates', 'contextLimit', 'skipPromotedReddit', 'theme',
+      'redditFormatting'
     ], function(result) {
       fallbackSettings = {
         ollamaUrl: result.ollamaUrl,
@@ -869,7 +887,8 @@ document.addEventListener('selectionchange', function() {
         temperature: result.temperature || 0.7,
         maxTokens: result.maxTokens || 500,
         contextLimit: result.contextLimit || 4000,
-        skipPromotedReddit: result.skipPromotedReddit !== false
+        skipPromotedReddit: result.skipPromotedReddit !== false,
+        redditFormatting: result.redditFormatting || {}
       };
       applyFallbackTheme(result.theme || 'light');
     });
@@ -907,6 +926,15 @@ document.addEventListener('selectionchange', function() {
 
       let systemPrompt = 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions, and occasional humor. Avoid corporate speak. Keep it under 3 sentences when possible.';
       const pageContext = extractPageContext(fallbackSettings.contextLimit, fallbackSettings.skipPromotedReddit);
+
+      // If on Reddit and formatting toggles are enabled, append formatting instruction
+      if (pageContext && pageContext.platform === 'reddit' && fallbackSettings.redditFormatting) {
+        const fmtInstr = buildFormattingInstruction(fallbackSettings.redditFormatting);
+        if (fmtInstr) {
+          systemPrompt += '\n\n' + fmtInstr;
+        }
+      }
+
       let userContent = '';
       if (pageContext && pageContext.text) {
         userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;

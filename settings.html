@@ -550,6 +550,78 @@
       </div>
     </div>
 
+    <!-- Reddit Formatting -->
+    <div class="card">
+      <div class="card-title">Reddit Formatting (Markdown)</div>
+      <p style="font-size: 12px; color: var(--secondary-text); margin: 0 0 10px 0;">
+        Enable the Markdown styles you want the AI to use in Reddit replies. All are off by default.
+      </p>
+
+      <div class="toggle-row">
+        <label style="margin: 0;"><strong>Bold</strong> <span style="color:var(--secondary-text);font-size:11px;">**text**</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-bold">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;"><em>Italic</em> <span style="color:var(--secondary-text);font-size:11px;">*text*</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-italic">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Headings <span style="color:var(--secondary-text);font-size:11px;"># ## ###</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-heading">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Bullet list <span style="color:var(--secondary-text);font-size:11px;">* item</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-bullet">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Numbered list <span style="color:var(--secondary-text);font-size:11px;">1. item</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-numlist">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Quote block <span style="color:var(--secondary-text);font-size:11px;">&gt; text</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-quote">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Inline code <span style="color:var(--secondary-text);font-size:11px;">`code`</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-inlinecode">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Code block <span style="color:var(--secondary-text);font-size:11px;">```code```</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-codeblock">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label style="margin: 0;">Table <span style="color:var(--secondary-text);font-size:11px;">| col |</span></label>
+        <label class="switch">
+          <input type="checkbox" id="fmt-table">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
     <button class="btn btn-block" id="save-btn">Save Settings</button>
 
     <div class="success" id="success">Saved!</div>
