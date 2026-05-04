@@ -111,6 +111,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Select All / None buttons for Reddit formatting
+  const tfmtSelectAll = document.getElementById('tfmt-select-all');
+  const tfmtSelectNone = document.getElementById('tfmt-select-none');
+  const tfmtCheckboxes = [
+    tfmtBold, tfmtItalic, tfmtHeading, tfmtQuote,
+    tfmtBullet, tfmtNumlist, tfmtInlinecode, tfmtCodeblock, tfmtTable
+  ].filter(Boolean);
+
+  if (tfmtSelectAll) {
+    tfmtSelectAll.addEventListener('click', function() {
+      tfmtCheckboxes.forEach(cb => cb.checked = true);
+    });
+  }
+
+  if (tfmtSelectNone) {
+    tfmtSelectNone.addEventListener('click', function() {
+      tfmtCheckboxes.forEach(cb => cb.checked = false);
+    });
+  }
+
   // Load current settings
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
