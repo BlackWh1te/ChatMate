@@ -977,12 +977,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Clear button - remove all responses and storage
+  // Clear button - remove all responses, storage, and page context
   clearBtn.addEventListener('click', function() {
     responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
     showResponses(false);
     if (storageAvailable()) {
       chrome.storage.local.remove(['lastResponses', 'lastActiveVariant', 'lastInput']);
+    }
+    // Reset page context
+    storedPageText = null;
+    storedPageImages = null;
+    currentPageContext = null;
+    if (pagePreview) {
+      pagePreview.innerHTML = '';
+      pagePreview.classList.remove('show');
     }
     currentInput = '';
     updateActionButtons();
