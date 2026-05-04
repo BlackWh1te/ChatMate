@@ -318,6 +318,11 @@ document.addEventListener('selectionchange', function() {
   const SIDEBAR_ZINDEX = 2147483647;
   const POPUP_URL = chrome.runtime.getURL('popup.html?mode=sidebar');
 
+  const COLORS = {
+    light: { btn: '#4f46e5', btnGlow: 'rgba(79,70,229,0.35)', containerBg: '#ffffff' },
+    dark: { btn: '#818cf8', btnGlow: 'rgba(129,140,248,0.4)', containerBg: '#1a1a2e' }
+  };
+
   let expanded = true;
   let useShadowDOM = false;
   let iframe = null;
@@ -360,6 +365,20 @@ document.addEventListener('selectionchange', function() {
   `;
   container.appendChild(iframe);
 
+  // Inject pulse animation for floating button
+  const pulseStyle = document.createElement('style');
+  pulseStyle.textContent = `
+    @keyframes chatmate-pulse {
+      0%, 100% { box-shadow: 0 4px 16px rgba(79,70,229,0.35), 0 0 0 0 rgba(79,70,229,0.3); }
+      50% { box-shadow: 0 4px 20px rgba(79,70,229,0.45), 0 0 0 10px rgba(79,70,229,0); }
+    }
+    @keyframes chatmate-pulse-dark {
+      0%, 100% { box-shadow: 0 4px 16px rgba(129,140,248,0.4), 0 0 0 0 rgba(129,140,248,0.3); }
+      50% { box-shadow: 0 4px 20px rgba(129,140,248,0.5), 0 0 0 10px rgba(129,140,248,0); }
+    }
+  `;
+  document.head.appendChild(pulseStyle);
+
   // --- Minimized floating button ---
   const miniBtn = document.createElement('div');
   miniBtn.id = 'chatmate-mini-btn';
@@ -369,10 +388,10 @@ document.addEventListener('selectionchange', function() {
     position: fixed;
     top: 100px;
     right: 20px;
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
     z-index: ${SIDEBAR_ZINDEX};
-    background: #0d6efd;
+    background: ${COLORS.light.btn};
     color: #fff;
     border-radius: 50%;
     display: flex;
@@ -380,12 +399,14 @@ document.addEventListener('selectionchange', function() {
     justify-content: center;
     cursor: pointer;
     font-size: 22px;
-    box-shadow: 0 4px 16px rgba(13,110,253,0.35);
+    box-shadow: 0 4px 16px ${COLORS.light.btnGlow};
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     pointer-events: none;
     transform: scale(0.8);
     user-select: none;
+    animation: chatmate-pulse 2.5s ease-in-out infinite;
+    border: 2px solid rgba(255,255,255,0.15);
   `;
 
   // Tooltip for mini button
@@ -395,34 +416,39 @@ document.addEventListener('selectionchange', function() {
   miniTooltip.style.cssText = `
     position: fixed;
     top: 100px;
-    right: 76px;
+    right: 78px;
     z-index: ${SIDEBAR_ZINDEX};
-    background: rgba(0,0,0,0.75);
+    background: rgba(30,30,45,0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     color: #fff;
-    padding: 5px 12px;
-    border-radius: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
     font-size: 12px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateX(4px);
     user-select: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-weight: 600;
+    letter-spacing: 0.2px;
   `;
 
-  miniBtn.addEventListener('mouseenter', () => { miniTooltip.style.opacity = '1'; });
-  miniBtn.addEventListener('mouseleave', () => { miniTooltip.style.opacity = '0'; });
-
-  // Hover scale effect
   miniBtn.addEventListener('mouseenter', () => {
-    if (miniBtn.style.opacity !== '0') {
-      miniBtn.style.transform = 'scale(1.1)';
-    }
+    miniTooltip.style.opacity = '1';
+    miniTooltip.style.transform = 'translateX(0)';
+    miniBtn.style.transform = 'scale(1.08)';
+    miniBtn.style.animation = 'none';
   });
   miniBtn.addEventListener('mouseleave', () => {
-    if (miniBtn.style.opacity !== '0') {
-      miniBtn.style.transform = 'scale(1)';
-    }
+    miniTooltip.style.opacity = '0';
+    miniTooltip.style.transform = 'translateX(4px)';
+    miniBtn.style.transform = 'scale(1)';
+    const isDark = container.style.background === COLORS.dark.containerBg;
+    miniBtn.style.animation = isDark ? 'chatmate-pulse-dark 2.5s ease-in-out infinite' : 'chatmate-pulse 2.5s ease-in-out infinite';
   });
 
   document.body.appendChild(container);
@@ -432,19 +458,13 @@ document.addEventListener('selectionchange', function() {
   // --- Dark mode theming ---
   function applySidebarTheme(theme) {
     const isDark = theme === 'dark';
-    if (isDark) {
-      container.style.background = '#1a1a2e';
-      container.style.borderColor = 'rgba(255,255,255,0.08)';
-      container.style.boxShadow = '0 8px 32px rgba(0,0,0,0.45)';
-      miniBtn.style.background = '#e94560';
-      miniBtn.style.boxShadow = '0 4px 16px rgba(233,69,96,0.4)';
-    } else {
-      container.style.background = '#ffffff';
-      container.style.borderColor = 'rgba(0,0,0,0.08)';
-      container.style.boxShadow = '0 8px 32px rgba(0,0,0,0.15)';
-      miniBtn.style.background = '#0d6efd';
-      miniBtn.style.boxShadow = '0 4px 16px rgba(13,110,253,0.35)';
-    }
+    const c = isDark ? COLORS.dark : COLORS.light;
+    container.style.background = c.containerBg;
+    container.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    container.style.boxShadow = isDark ? '0 8px 32px rgba(0,0,0,0.45)' : '0 8px 32px rgba(0,0,0,0.15)';
+    miniBtn.style.background = c.btn;
+    miniBtn.style.boxShadow = `0 4px 16px ${c.btnGlow}`;
+    miniBtn.style.animation = isDark ? 'chatmate-pulse-dark 2.5s ease-in-out infinite' : 'chatmate-pulse 2.5s ease-in-out infinite';
   }
 
   // Listen for theme changes from popup

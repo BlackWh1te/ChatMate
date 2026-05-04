@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
     readPageBtn.classList.add('btn-reading');
     readPageBtn.innerHTML = '<span>📖</span> Reading page<span class="thinking-text"></span>';
     storedPageText = null;
-    pagePreview.style.display = 'none';
+    pagePreview.classList.remove('show');
 
     try {
       const settings = await getSettings();
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
           ? `<em>Ask about the post or any comment (e.g., "Summarize the top comments", "What does comment #3 say?")</em>`
           : `<em>Now type your question below (e.g., "What was on page 210?")</em>`;
         pagePreview.innerHTML = `${header}<br><br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
-        pagePreview.style.display = 'block';
+        pagePreview.classList.add('show');
         showToast(`Read ${pageContext.text.length.toLocaleString()} characters${isReddit ? ` (${pageContext.commentCount} comments)` : ''}`, 'success');
         // Focus the input so user can type their question
         inputText.focus();
