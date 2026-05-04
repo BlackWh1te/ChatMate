@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ];
   const copyBtn = document.getElementById('copy-btn');
   const cleanBtn = document.getElementById('clean-btn');
+  const clearBtn = document.getElementById('clear-btn');
   const pasteBtn = document.getElementById('paste-btn');
   const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
@@ -125,6 +126,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update variant buttons visibility
     updateVariantButtons(result.variantCount || 1);
+  });
+
+  // Restore previous responses (persist across popup closes)
+  chrome.storage.local.get(['lastResponses', 'lastActiveVariant', 'lastInput'], function(result) {
+    if (result.lastResponses && result.lastResponses.length > 0) {
+      const saved = result.lastResponses;
+      let hasContent = false;
+      saved.forEach((item, i) => {
+        if (i < responseCards.length && item.text) {
+          responseCards[i].textContent = item.text;
+          if (!item.hasError) hasContent = true;
+        }
+      });
+      if (hasContent) {
+        responsesContainer.classList.add('show');
+        const active = result.lastActiveVariant || 0;
+        setActiveVariant(active);
+        updateActionButtons();
+      }
+      if (result.lastInput) {
+        currentInput = result.lastInput;
+      }
+    }
   });
 
   function updateVariantButtons(count) {
@@ -368,6 +392,17 @@ document.addEventListener('DOMContentLoaded', function() {
         setActiveVariant(0);
         updateModelInfo(settings, currentPageContext);
 
+        // Persist responses across popup closes
+        const responsesToSave = responseCards.map((card, i) => ({
+          text: card.textContent,
+          hasError: results[i]?.status === 'rejected'
+        }));
+        chrome.storage.local.set({
+          lastResponses: responsesToSave,
+          lastActiveVariant: 0,
+          lastInput: text
+        });
+
         // Save to history (save first successful response)
         const firstSuccess = results.find(r => r.status === 'fulfilled' && r.value);
         if (firstSuccess) {
@@ -570,6 +605,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const cleaned = cleanResponse(rawText);
     responseCards[activeVariant].textContent = cleaned;
     showToast('Cleaned up!', 'success');
+  });
+
+  // Clear button - remove all responses and storage
+  clearBtn.addEventListener('click', function() {
+    responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+    responsesContainer.classList.remove('show');
+    chrome.storage.local.remove(['lastResponses', 'lastActiveVariant', 'lastInput']);
+    currentInput = '';
+    updateActionButtons();
+    showToast('Cleared', 'success');
   });
 
   // Regenerate button
