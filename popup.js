@@ -192,11 +192,11 @@ document.addEventListener('DOMContentLoaded', function() {
     await generateResponses(text, currentTemplateId);
   });
 
-  async function fetchPageContext() {
+  async function fetchPageContext(maxLength) {
     return new Promise((resolve) => {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (!tabs || !tabs[0]) { resolve(null); return; }
-        chrome.tabs.sendMessage(tabs[0].id, {action: 'getPageContext', maxLength: 3000}, function(response) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'getPageContext', maxLength: maxLength || 4000}, function(response) {
           if (chrome.runtime.lastError || !response || !response.context) {
             resolve(null);
           } else {
@@ -207,18 +207,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  async function fetchReferenceUrls() {
+  async function fetchReferenceUrls(maxLength) {
     return new Promise((resolve) => {
       chrome.storage.local.get(['referenceUrls'], function(result) {
         const urls = result.referenceUrls || [];
         if (urls.length === 0) { resolve([]); return; }
+        const limit = maxLength || 4000;
         const fetchPromises = urls.map(async (item) => {
           try {
             const res = await fetch(item.url, { signal: AbortSignal.timeout(8000) });
             if (!res.ok) return null;
             const html = await res.text();
             const text = htmlToText(html);
-            return { label: item.label || item.url, text: truncate(text, 2000) };
+            return { label: item.label || item.url, text: truncate(text, limit) };
           } catch (e) {
             return null;
           }
@@ -283,11 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // Fetch page context if enabled
       currentPageContext = null;
       if (contextToggle && contextToggle.checked) {
-        currentPageContext = await fetchPageContext();
+        currentPageContext = await fetchPageContext(settings.contextLimit);
       }
 
       // Fetch reference URLs content
-      const refContents = await fetchReferenceUrls();
+      const refContents = await fetchReferenceUrls(settings.contextLimit);
 
       // Get template prompt
       let systemPrompt = 'Help me write a response to this message. Keep it natural and conversational';
@@ -507,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
         'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
-        'temperature', 'maxTokens'
+        'temperature', 'maxTokens', 'contextLimit'
       ], function(result) {
         resolve({
           ollamaUrl: result.ollamaUrl,
@@ -515,7 +516,8 @@ document.addEventListener('DOMContentLoaded', function() {
           streamingEnabled: result.streamingEnabled !== false,
           variantCount: result.variantCount || 1,
           temperature: result.temperature || 0.7,
-          maxTokens: result.maxTokens || 500
+          maxTokens: result.maxTokens || 500,
+          contextLimit: result.contextLimit || 4000
         });
       });
     });

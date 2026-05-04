@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const temperatureSlider = document.getElementById('temperature');
   const temperatureValue = document.getElementById('temperature-value');
   const maxTokens = document.getElementById('max-tokens');
+  const contextLimit = document.getElementById('context-limit');
   const themeToggle = document.getElementById('theme-toggle');
   const success = document.getElementById('success');
   const error = document.getElementById('error');
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
     'streamingEnabled', 'variantCount', 'temperature', 'maxTokens',
-    'referenceUrls'
+    'referenceUrls', 'contextLimit'
   ], function(result) {
     ollamaUrlInput.value = result.ollamaUrl || '';
     streamingToggle.checked = result.streamingEnabled !== false;
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     temperatureSlider.value = result.temperature || 0.7;
     temperatureValue.textContent = temperatureSlider.value;
     maxTokens.value = result.maxTokens || 500;
+    contextLimit.value = result.contextLimit || 4000;
 
     // Populate model dropdown
     populateModelSelect(result.modelName || 'llama2', result.models || []);
@@ -143,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const variants = parseInt(variantCount.value);
     const temp = parseFloat(temperatureSlider.value);
     const tokens = parseInt(maxTokens.value);
+    const ctxLimit = parseInt(contextLimit.value) || 4000;
 
     if (!ollamaUrl) {
       showError('Ollama URL is required');
@@ -159,7 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
       streamingEnabled: streaming,
       variantCount: variants,
       temperature: temp,
-      maxTokens: tokens
+      maxTokens: tokens,
+      contextLimit: ctxLimit
     }, function() {
       showSuccess('Settings saved!');
     });

@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   }
 
   if (request.action === 'getPageContext') {
-    const context = extractPageContext(request.maxLength || 3000);
+    const context = extractPageContext(request.maxLength || 4000);
     sendResponse({context: context});
     return true;
   }

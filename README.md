@@ -24,7 +24,8 @@ A Chrome extension that helps you write better chat responses using your local O
 
 ### Context-Aware Responses
 - **Page Context** - Toggle "Include page context" in the popup to send the current webpage's content as additional context to the AI
-- **Reference URLs** - Add FAQ pages, documentation, or knowledge-base URLs in Settings. Their content is fetched and included automatically with every prompt (up to 2000 chars per URL)
+- **Reference URLs** - Add FAQ pages, documentation, or knowledge-base URLs in Settings. Their content is fetched and included automatically with every prompt
+- **Configurable context size** - Set "Max context characters" in Settings. Default is 4000 chars, but you can increase it up to 100,000 for large-context models (e.g., 50,000 for 128K models, 100,000 for 1M context models)
 
 ### Customization
 - **Auto-detect models** - Automatically fetch available models from your Ollama instance
@@ -123,7 +124,7 @@ Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 
 **Use page context** - When replying to something on a webpage (forum, support ticket, article comments), enable "Include page context" so the AI knows what the discussion is about.
 
-**Reference URLs** - Add your company's FAQ or product docs in Settings. The AI will use them as background knowledge when writing responses, up to 2000 characters per URL.
+**Reference URLs** - Add your company's FAQ or product docs in Settings. The AI will use them as background knowledge when writing responses. Increase "Max context characters" in Settings if you're using a large-context model (128K, 1M tokens) and want to send more content.
 
 ## Troubleshooting
 
