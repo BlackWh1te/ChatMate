@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
     displayHistory(allHistory);
   });
 
-  // Detect models from Ollama
+  // Find models from Ollama
   detectModelsBtn.addEventListener('click', async function() {
     const url = ollamaUrlInput.value.trim();
     if (!url) {
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     detectModelsBtn.disabled = true;
-    detectModelsBtn.textContent = '🔍 ...';
+    detectModelsBtn.textContent = '🔍 Finding...';
 
     try {
       const res = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(10000) });
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showError(`Cannot connect: ${err.message}`);
     } finally {
       detectModelsBtn.disabled = false;
-      detectModelsBtn.textContent = '🔍 Detect';
+      detectModelsBtn.textContent = '🔍 Find Models';
     }
   });
 
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
       maxTokens: tokens,
       contextLimit: ctxLimit
     }, function() {
-      showSuccess('Settings saved!');
+      showSuccess('Saved!');
     });
   });
 
@@ -249,14 +249,14 @@ document.addEventListener('DOMContentLoaded', function() {
         displayTemplates(templates);
         templateNameInput.value = '';
         templatePromptInput.value = '';
-        showSuccess('Template added!');
+        showSuccess('Tone saved!');
       });
     });
   });
 
   function displayTemplates(templates) {
     if (!templates || templates.length === 0) {
-      templatesList.innerHTML = '<div class="empty-state">No custom templates yet</div>';
+      templatesList.innerHTML = '<div class="empty-state">No saved tones yet</div>';
       return;
     }
 
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function deleteTemplate(id) {
-    if (!confirm('Delete this template?')) return;
+    if (!confirm('Delete this tone?')) return;
 
     chrome.storage.local.get(['templates'], function(result) {
       const templates = (result.templates || []).filter(t => t.id !== id);

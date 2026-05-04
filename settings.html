@@ -346,17 +346,17 @@
 
     <!-- Connection Settings -->
     <div class="card">
-      <div class="card-title">Connection</div>
+      <div class="card-title">Your AI Setup</div>
 
-      <label for="ollama-url">Ollama URL</label>
+      <label for="ollama-url">AI Server Address</label>
       <div class="row">
         <input type="text" id="ollama-url" placeholder="http://localhost:11434" style="flex: 3;">
         <button class="btn btn-secondary" id="detect-models-btn" style="flex: 1; font-size: 12px;">
-          🔍 Detect
+          🔍 Find Models
         </button>
       </div>
 
-      <label for="model-select">Model</label>
+      <label for="model-select">Model to Use</label>
       <select id="model-select">
         <option value="llama2">llama2 (default)</option>
       </select>
@@ -364,10 +364,10 @@
 
     <!-- Generation Settings -->
     <div class="card">
-      <div class="card-title">Generation Settings</div>
+      <div class="card-title">Reply Style</div>
 
       <div class="toggle-row">
-        <label style="margin: 0;">Enable streaming responses</label>
+        <label style="margin: 0;">Show reply as it's being written</label>
         <label class="switch">
           <input type="checkbox" id="streaming-toggle" checked>
           <span class="slider"></span>
@@ -375,53 +375,53 @@
       </div>
 
       <div class="toggle-row">
-        <label style="margin: 0;">Generate multiple variants</label>
+        <label style="margin: 0;">How many reply options</label>
         <select id="variant-count" style="width: auto; margin: 0;">
-          <option value="1">1 option</option>
-          <option value="2">2 options</option>
-          <option value="3">3 options</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
         </select>
       </div>
 
-      <label>Temperature (creativity)</label>
+      <label>Creativity</label>
       <div class="slider-container">
         <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7">
         <span class="slider-value" id="temperature-value">0.7</span>
       </div>
 
-      <label for="max-tokens">Max response length (tokens)</label>
+      <label for="max-tokens">Max reply length</label>
       <input type="number" id="max-tokens" min="50" max="4096" value="500" step="50">
 
-      <label for="context-limit">Max context characters</label>
+      <label for="context-limit">How much page text to read</label>
       <input type="number" id="context-limit" min="1000" max="100000" value="4000" step="1000">
       <div style="font-size: 11px; color: var(--secondary-text); margin-top: 4px;">
-        How much page/reference text to send to the model. Increase this for large-context models (e.g., 50000 for 128K models, 100000 for 1M models).
+        Higher numbers let the AI see more of the page. Only change this if you know your model supports large context.
       </div>
     </div>
 
     <button class="btn btn-block" id="save-btn">Save Settings</button>
 
-    <div class="success" id="success">Settings saved!</div>
+    <div class="success" id="success">Saved!</div>
     <div class="error" id="error"></div>
 
     <div class="info">
-      <strong>Setup Instructions:</strong><br>
-      1. Install Ollama: <a href="https://ollama.ai" target="_blank" style="color: var(--primary);">ollama.ai</a><br>
-      2. Pull a model: <code>ollama pull llama2</code><br>
-      3. Start Ollama: <code>ollama serve</code><br>
-      4. For remote access: <code>ngrok http 11434</code>
+      <strong>Quick Setup:</strong><br>
+      1. Get Ollama from <a href="https://ollama.ai" target="_blank" style="color: var(--primary);">ollama.ai</a><br>
+      2. Run: <code>ollama pull llama3</code><br>
+      3. Run: <code>ollama serve</code><br>
+      4. Click <strong>Find Models</strong> above → Save
     </div>
 
     <!-- Reference URLs -->
     <div class="card">
-      <div class="card-title">Reference URLs</div>
+      <div class="card-title">Helpful Links</div>
       <div style="font-size: 12px; color: var(--secondary-text); margin-bottom: 10px;">
-        Add URLs to FAQ pages, docs, or knowledge bases. Their text will be fetched and included as context when generating responses.
+        Add links to your FAQ, docs, or knowledge base. The AI will read them to write better replies.
       </div>
 
       <div class="row" style="margin-bottom: 8px;">
         <input type="text" id="ref-url-input" placeholder="https://example.com/faq" style="flex: 3;">
-        <input type="text" id="ref-url-label" placeholder="Label (optional)" style="flex: 2;">
+        <input type="text" id="ref-url-label" placeholder="Name (optional)" style="flex: 2;">
         <button class="btn btn-success" id="add-ref-url-btn" style="flex: 1; font-size: 12px;">+ Add</button>
       </div>
 
@@ -430,16 +430,16 @@
 
     <!-- Response Templates -->
     <div class="card">
-      <div class="card-title">Response Templates</div>
+      <div class="card-title">Saved Tones</div>
 
-      <label for="template-name">Template Name</label>
-      <input type="text" id="template-name" placeholder="e.g., Professional">
+      <label for="template-name">Name</label>
+      <input type="text" id="template-name" placeholder="e.g., Friendly">
 
-      <label for="template-prompt">System Prompt</label>
-      <input type="text" id="template-prompt" placeholder="e.g., Write a professional response">
+      <label for="template-prompt">Instructions for the AI</label>
+      <input type="text" id="template-prompt" placeholder="e.g., Write like a friendly coworker">
 
       <button class="btn btn-block btn-success" id="add-template-btn" style="margin-top: 6px;">
-        + Add Template
+        + Add Tone
       </button>
 
       <div id="templates-list" class="templates-list"></div>
@@ -447,9 +447,9 @@
 
     <!-- History -->
     <div class="card">
-      <div class="card-title">History</div>
+      <div class="card-title">Past Replies</div>
 
-      <input type="text" id="history-search" class="search-box" placeholder="Search history...">
+      <input type="text" id="history-search" class="search-box" placeholder="Search past replies...">
 
       <div class="btn-group" style="margin-bottom: 10px;">
         <button class="btn btn-secondary small-btn" id="export-history-btn">📤 Export</button>

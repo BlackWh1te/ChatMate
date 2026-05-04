@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     if (!result.ollamaUrl) {
-      showError('Please configure your Ollama URL in Settings');
+      showError('Open Settings and connect to your AI');
       generateBtn.disabled = true;
       setStatus('offline', 'Not configured');
     } else {
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const text = inputText.value.trim();
     if (!text) {
-      showError('Please enter some text');
+      showError('Type something first');
       return;
     }
 
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const settings = await getSettings();
       if (!settings.ollamaUrl) {
-        throw new Error('Please configure Ollama URL in Settings');
+        throw new Error('Go to Settings and set up your AI server');
       }
 
       // Fetch page context if enabled
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
           responseCards[i].textContent = result.value;
           hasAnySuccess = true;
         } else if (result.status === 'rejected') {
-          responseCards[i].textContent = 'Error: ' + result.reason.message;
+          responseCards[i].textContent = 'Oops: ' + result.reason.message;
         }
       });
 
@@ -351,9 +351,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total, pageContext, refContents) {
     if (total > 1) {
-      loadingText.textContent = `Generating option ${index + 1} of ${total}...`;
+      loadingText.textContent = `Writing reply ${index + 1} of ${total}...`;
     } else {
-      loadingText.textContent = 'Generating response...';
+      loadingText.textContent = 'Writing your reply...';
     }
 
     const url = `${settings.ollamaUrl}/api/generate`;
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Regenerate button
   regenerateBtn.addEventListener('click', async function() {
     if (!currentInput) {
-      showError('Nothing to regenerate. Generate a response first.');
+      showError('Write a reply first, then you can redo it');
       return;
     }
     await generateResponses(currentInput, currentTemplateId);

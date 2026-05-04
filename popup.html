@@ -354,30 +354,30 @@
     </div>
 
     <div class="card">
-      <label for="template-select">Response Style</label>
-      <select id="template-select">
-        <option value="">Default</option>
-      </select>
-    </div>
-
-    <div class="card">
       <div class="toggle-row" style="margin-bottom: 10px;">
-        <label style="margin: 0; font-size: 12px;">Include page context</label>
+        <label style="margin: 0; font-size: 12px;">Use this page for context</label>
         <label class="switch" style="margin: 0;">
           <input type="checkbox" id="context-toggle">
           <span class="slider"></span>
         </label>
       </div>
       <p style="font-size: 11px; color: var(--secondary-text); margin: 0; line-height: 1.4;">
-        When on, ChatMate reads the current page content to give more accurate responses. Great for support agents referencing docs or FAQs.
+        When on, the AI reads the page you're on to write a better reply.
       </p>
     </div>
 
     <div class="card">
-      <label for="input-text">Selected text or type your message</label>
-      <textarea id="input-text" placeholder="Select text on a page or type here..."></textarea>
+      <label for="template-select">Tone</label>
+      <select id="template-select">
+        <option value="">Default</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <label for="input-text">What do you want to reply to?</label>
+      <textarea id="input-text" placeholder="Highlight text on a page, or type here..."></textarea>
       <button class="btn btn-block" id="generate-btn" style="margin-top: 10px;">
-        <span>⚡</span> Generate Response
+        <span>✨</span> Write a Reply
       </button>
     </div>
 
