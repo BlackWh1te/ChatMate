@@ -376,9 +376,15 @@
     <div class="card">
       <label for="input-text">What do you want to reply to?</label>
       <textarea id="input-text" placeholder="Highlight text on a page, or type here..."></textarea>
-      <button class="btn btn-block" id="generate-btn" style="margin-top: 10px;">
-        <span>✨</span> Write a Reply
-      </button>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button class="btn btn-secondary" id="read-page-btn" style="flex: 1;">
+          <span>📖</span> Read Page
+        </button>
+        <button class="btn btn-block" id="generate-btn" style="flex: 2;">
+          <span>✨</span> Write a Reply
+        </button>
+      </div>
+      <div id="page-preview" style="display: none; margin-top: 10px; padding: 10px; background: var(--response-bg); border-radius: var(--radius); font-size: 12px; color: var(--secondary-text); max-height: 120px; overflow-y: auto; border: 1px solid var(--border-color);"></div>
     </div>
 
     <div class="loading" id="loading">

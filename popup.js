@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const tokenInfo = document.getElementById('token-info');
   const footerInfo = document.getElementById('footer-info');
   const toast = document.getElementById('toast');
+  const readPageBtn = document.getElementById('read-page-btn');
+  const pagePreview = document.getElementById('page-preview');
 
   // State
   let currentSettings = null;
@@ -33,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let isGenerating = false;
   let abortController = null;
   let currentPageContext = null;
+  let storedPageText = null;
 
   // Theme handling
   function applyTheme(theme) {
@@ -171,6 +174,35 @@ document.addEventListener('DOMContentLoaded', function() {
     pasteBtn.disabled = !hasContent;
   }
 
+  // Read Page button - extract page content for study/questions
+  readPageBtn.addEventListener('click', async function() {
+    readPageBtn.disabled = true;
+    readPageBtn.textContent = '📖 Reading...';
+    storedPageText = null;
+    pagePreview.style.display = 'none';
+
+    try {
+      const settings = await getSettings();
+      const pageContext = await fetchPageContext(settings.contextLimit);
+      if (pageContext && pageContext.text) {
+        storedPageText = pageContext.text;
+        const preview = pageContext.text.substring(0, 300);
+        pagePreview.innerHTML = `<strong>Page read (${pageContext.text.length.toLocaleString()} chars):</strong><br><br>${preview}${pageContext.text.length > 300 ? '...' : ''}<br><br><em>Now type your question below (e.g., "What was on page 210?")</em>`;
+        pagePreview.style.display = 'block';
+        showToast(`Read ${pageContext.text.length.toLocaleString()} characters from page`, 'success');
+        // Focus the input so user can type their question
+        inputText.focus();
+      } else {
+        showError('Could not read this page. Try a different site.');
+      }
+    } catch (err) {
+      showError('Failed to read page: ' + err.message);
+    } finally {
+      readPageBtn.disabled = false;
+      readPageBtn.innerHTML = '<span>📖</span> Read Page';
+    }
+  });
+
   // Generate response
   generateBtn.addEventListener('click', async function() {
     if (isGenerating) {
@@ -254,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return text.substring(0, maxLen) + '... [truncated]';
   }
 
-  function buildFullPrompt(systemPrompt, userInput, pageContext, refContents) {
+  function buildFullPrompt(systemPrompt, userInput, pageContext, refContents, explicitPageText) {
     let prompt = systemPrompt;
     if (refContents && refContents.length > 0) {
       prompt += '\n\nReference materials:';
@@ -262,10 +294,13 @@ document.addEventListener('DOMContentLoaded', function() {
         prompt += `\n\n[${i + 1}] ${ref.label}:\n---\n${ref.text}\n---`;
       });
     }
-    if (pageContext && pageContext.text) {
+    if (explicitPageText) {
+      // User explicitly read the page for study/questions
+      prompt += `\n\nHere is the full text of the page I am reading:\n---\n${explicitPageText}\n---`;
+    } else if (pageContext && pageContext.text) {
       prompt += `\n\nHere is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---`;
     }
-    prompt += `\n\nUser message:\n${userInput}\n\nPlease write a response.`;
+    prompt += `\n\nMy question:\n${userInput}\n\nPlease answer based on the text above.`;
     return prompt;
   }
 
@@ -363,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const url = `${settings.ollamaUrl}/api/generate`;
 
     const maxTokens = settings.maxTokens || 500;
-    const fullPrompt = buildFullPrompt(systemPrompt, prompt, pageContext, refContents);
+    const fullPrompt = buildFullPrompt(systemPrompt, prompt, pageContext, refContents, storedPageText);
 
     if (settings.streamingEnabled && total === 1) {
       // Streaming for single response
