@@ -72,7 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const current = document.documentElement.getAttribute('data-theme') || 'light';
     const newTheme = current === 'dark' ? 'light' : 'dark';
     applyTheme(newTheme);
-    chrome.storage.local.set({theme: newTheme});
+    try {
+      chrome.storage.local.set({theme: newTheme});
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   });
 
   // Temperature slider
@@ -140,7 +144,11 @@ document.addEventListener('DOMContentLoaded', function() {
         modelSelect.style.display = 'none';
         modelManual.style.display = 'block';
       } else {
-        chrome.storage.local.set({ models: modelNames, modelName: modelNames[0] });
+        try {
+          chrome.storage.local.set({ models: modelNames, modelName: modelNames[0] });
+        } catch (e) {
+          // Extension context invalidated - ignore
+        }
         populateModelSelect(modelNames[0], modelNames);
         showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}. Saved ${modelNames[0]} as default.`);
       }
@@ -209,15 +217,19 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    chrome.storage.local.set({
-      ollamaUrl: ollamaUrl,
-      modelName: modelName,
-      streamingEnabled: streaming,
-      temperature: temp,
-      maxTokens: tokens
-    }, function() {
-      showSuccess('Saved!');
-    });
+    try {
+      chrome.storage.local.set({
+        ollamaUrl: ollamaUrl,
+        modelName: modelName,
+        streamingEnabled: streaming,
+        temperature: temp,
+        maxTokens: tokens
+      }, function() {
+        showSuccess('Saved!');
+      });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   });
 
   // Templates
@@ -239,24 +251,32 @@ document.addEventListener('DOMContentLoaded', function() {
       bullet: tfmtBullet ? tfmtBullet.checked : false
     } : null;
 
-    chrome.storage.local.get(['templates'], function(result) {
-      const templates = result.templates || [];
-      templates.push({ name, prompt, id: Date.now(), reddit: isReddit, redditFormatting: redditFmt });
-      chrome.storage.local.set({ templates: templates }, function() {
-        displayTemplates(templates);
-        templateNameInput.value = '';
-        templatePromptInput.value = '';
-        if (templateReddit) templateReddit.checked = false;
-        if (templateRedditFmt) templateRedditFmt.style.display = 'none';
-        // Reset formatting toggles
-        if (tfmtBold) tfmtBold.checked = false;
+    try {
+      chrome.storage.local.get(['templates'], function(result) {
+        try {
+          const templates = result.templates || [];
+          templates.push({ name, prompt, id: Date.now(), reddit: isReddit, redditFormatting: redditFmt });
+          chrome.storage.local.set({ templates: templates }, function() {
+            displayTemplates(templates);
+            templateNameInput.value = '';
+            templatePromptInput.value = '';
+            if (templateReddit) templateReddit.checked = false;
+            if (templateRedditFmt) templateRedditFmt.style.display = 'none';
+            // Reset formatting toggles
+            if (tfmtBold) tfmtBold.checked = false;
         if (tfmtItalic) tfmtItalic.checked = false;
         if (tfmtQuote) tfmtQuote.checked = false;
         if (tfmtCodeblock) tfmtCodeblock.checked = false;
         if (tfmtBullet) tfmtBullet.checked = false;
         showSuccess('Tone saved!');
+          });
+        } catch (e) {
+          // Extension context invalidated - ignore
+        }
       });
-    });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   });
 
   function displayTemplates(templates) {
@@ -291,12 +311,20 @@ document.addEventListener('DOMContentLoaded', function() {
   function deleteTemplate(id) {
     if (!confirm('Delete this tone?')) return;
 
-    chrome.storage.local.get(['templates'], function(result) {
-      const templates = (result.templates || []).filter(t => t.id !== id);
-      chrome.storage.local.set({ templates: templates }, function() {
-        displayTemplates(templates);
+    try {
+      chrome.storage.local.get(['templates'], function(result) {
+        try {
+          const templates = (result.templates || []).filter(t => t.id !== id);
+          chrome.storage.local.set({ templates: templates }, function() {
+            displayTemplates(templates);
+          });
+        } catch (e) {
+          // Extension context invalidated - ignore
+        }
       });
-    });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   }
 
   // History
@@ -401,11 +429,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // Clear history
   clearHistoryBtn.addEventListener('click', function() {
     if (!confirm('Clear all history? This cannot be undone.')) return;
-    chrome.storage.local.set({ history: [] }, function() {
-      allHistory = [];
-      displayHistory([]);
-      showSuccess('History cleared!');
-    });
+    try {
+      chrome.storage.local.set({ history: [] }, function() {
+        allHistory = [];
+        displayHistory([]);
+        showSuccess('History cleared!');
+      });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   });
 
   // Feedback
@@ -442,10 +474,14 @@ document.addEventListener('DOMContentLoaded', function() {
   if (clearFeedbackBtn) {
     clearFeedbackBtn.addEventListener('click', function() {
       if (!confirm('Clear all feedback ratings? This cannot be undone.')) return;
-      chrome.storage.local.set({ feedbackHistory: [] }, function() {
-        displayFeedback([]);
-        showSuccess('Feedback cleared!');
-      });
+      try {
+        chrome.storage.local.set({ feedbackHistory: [] }, function() {
+          displayFeedback([]);
+          showSuccess('Feedback cleared!');
+        });
+      } catch (e) {
+        // Extension context invalidated - ignore
+      }
     });
   }
 

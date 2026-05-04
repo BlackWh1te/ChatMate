@@ -798,12 +798,16 @@ document.addEventListener('selectionchange', function() {
   }
 
   // Listen for theme changes from popup
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener(function(changes, area) {
-      if (area === 'local' && changes.theme) {
-        applySidebarTheme(changes.theme.newValue);
-      }
-    });
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(function(changes, area) {
+        if (area === 'local' && changes.theme) {
+          applySidebarTheme(changes.theme.newValue);
+        }
+      });
+    }
+  } catch (e) {
+    // Extension context invalidated - ignore
   }
 
   // --- Minimize / Expand ---
@@ -814,8 +818,12 @@ document.addEventListener('selectionchange', function() {
     miniBtn.style.opacity = '1';
     miniBtn.style.pointerEvents = 'auto';
     miniBtn.style.transform = 'scale(1)';
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({sidebarExpanded: false});
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({sidebarExpanded: false});
+      }
+    } catch (e) {
+      // Extension context invalidated - ignore
     }
   }
 
@@ -827,8 +835,12 @@ document.addEventListener('selectionchange', function() {
     miniBtn.style.pointerEvents = 'none';
     miniBtn.style.transform = 'scale(0.8)';
     miniTooltip.style.opacity = '0';
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({sidebarExpanded: true});
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({sidebarExpanded: true});
+      }
+    } catch (e) {
+      // Extension context invalidated - ignore
     }
   }
 
@@ -1022,26 +1034,31 @@ document.addEventListener('selectionchange', function() {
       return ' FORMATTING: When writing your Reddit reply, you MAY use the following Markdown styles where appropriate: ' + items.join(', ') + '. Do NOT use styles that are not listed here. Use formatting naturally — do not over-format.';
     }
 
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get([
-        'ollamaUrl', 'modelName', 'temperature', 'maxTokens',
-        'templates', 'theme'
-      ], function(result) {
-        fallbackSettings = {
-          ollamaUrl: result.ollamaUrl,
-          modelName: result.modelName || '',
-          temperature: result.temperature || 0.7,
-          maxTokens: result.maxTokens || 500
-        };
-        applyFallbackTheme(result.theme || 'light');
-      });
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get([
+          'ollamaUrl', 'modelName', 'temperature', 'maxTokens',
+          'templates', 'theme'
+        ], function(result) {
+          fallbackSettings = {
+            ollamaUrl: result.ollamaUrl,
+            modelName: result.modelName || '',
+            temperature: result.temperature || 0.7,
+            maxTokens: result.maxTokens || 500
+          };
+          applyFallbackTheme(result.theme || 'light');
+        });
 
-      chrome.storage.onChanged.addListener(function(changes, area) {
-        if (area === 'local' && changes.theme) {
-          applyFallbackTheme(changes.theme.newValue);
-        }
-      });
-    } else {
+        chrome.storage.onChanged.addListener(function(changes, area) {
+          if (area === 'local' && changes.theme) {
+            applyFallbackTheme(changes.theme.newValue);
+          }
+        });
+      } else {
+        applyFallbackTheme('light');
+      }
+    } catch (e) {
+      // Extension context invalidated - use default theme
       applyFallbackTheme('light');
     }
 
@@ -1171,19 +1188,24 @@ document.addEventListener('selectionchange', function() {
   }
 
   // --- Restore saved state ---
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(['sidebarExpanded', 'theme'], function(result) {
-      applySidebarTheme(result.theme || 'light');
-      if (result.sidebarExpanded === false) {
-        expanded = false;
-        container.style.transform = `translateX(calc(100% + ${SIDEBAR_MARGIN * 3}px))`;
-        container.style.opacity = '0';
-        miniBtn.style.opacity = '1';
-        miniBtn.style.pointerEvents = 'auto';
-        miniBtn.style.transform = 'scale(1)';
-      }
-    });
-  } else {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['sidebarExpanded', 'theme'], function(result) {
+        applySidebarTheme(result.theme || 'light');
+        if (result.sidebarExpanded === false) {
+          expanded = false;
+          container.style.transform = `translateX(calc(100% + ${SIDEBAR_MARGIN * 3}px))`;
+          container.style.opacity = '0';
+          miniBtn.style.opacity = '1';
+          miniBtn.style.pointerEvents = 'auto';
+          miniBtn.style.transform = 'scale(1)';
+        }
+      });
+    } else {
+      applySidebarTheme('light');
+    }
+  } catch (e) {
+    // Extension context invalidated - use default theme
     applySidebarTheme('light');
   }
 

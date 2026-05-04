@@ -211,8 +211,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const current = document.documentElement.getAttribute('data-theme') || 'light';
     const newTheme = current === 'dark' ? 'light' : 'dark';
     applyTheme(newTheme);
-    if (storageAvailable()) {
-      chrome.storage.local.set({theme: newTheme});
+    try {
+      if (storageAvailable()) {
+        chrome.storage.local.set({theme: newTheme});
+      }
+    } catch (e) {
+      // Extension context invalidated - ignore
     }
   });
 
@@ -396,13 +400,21 @@ document.addEventListener('DOMContentLoaded', function() {
       template: currentTemplateId || '__casual__',
       timestamp: Date.now()
     };
-    if (storageAvailable()) {
-      chrome.storage.local.get(['feedbackHistory'], function(result) {
-        const history = result.feedbackHistory || [];
-        history.unshift(entry);
-        if (history.length > 200) history.pop();
-        chrome.storage.local.set({ feedbackHistory: history });
-      });
+    try {
+      if (storageAvailable()) {
+        chrome.storage.local.get(['feedbackHistory'], function(result) {
+          try {
+            const history = result.feedbackHistory || [];
+            history.unshift(entry);
+            if (history.length > 200) history.pop();
+            chrome.storage.local.set({ feedbackHistory: history });
+          } catch (e) {
+            // Extension context invalidated - ignore
+          }
+        });
+      }
+    } catch (e) {
+      // Extension context invalidated - ignore
     }
   }
 
@@ -818,16 +830,20 @@ document.addEventListener('DOMContentLoaded', function() {
         await updateModelInfo(settings, currentPageContext);
 
         // Persist response across popup closes
-        if (storageAvailable()) {
-          const responsesToSave = [{
-            text: responseCards[0].textContent,
-            hasError: false
-          }];
-          chrome.storage.local.set({
-            lastResponses: responsesToSave,
-            lastActiveVariant: 0,
-            lastInput: text
-          });
+        try {
+          if (storageAvailable()) {
+            const responsesToSave = [{
+              text: responseCards[0].textContent,
+              hasError: false
+            }];
+            chrome.storage.local.set({
+              lastResponses: responsesToSave,
+              lastActiveVariant: 0,
+              lastInput: text
+            });
+          }
+        } catch (e) {
+          // Extension context invalidated - ignore
         }
 
         // Save to history
@@ -1205,18 +1221,26 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function saveToHistory(input, output, modelName) {
-    if (!storageAvailable()) return;
-    chrome.storage.local.get(['history'], function(result) {
-      const history = result.history || [];
-      history.unshift({
-        input: input,
-        output: output,
-        model: modelName,
-        timestamp: Date.now()
+    try {
+      if (!storageAvailable()) return;
+      chrome.storage.local.get(['history'], function(result) {
+        try {
+          const history = result.history || [];
+          history.unshift({
+            input: input,
+            output: output,
+            model: modelName,
+            timestamp: Date.now()
+          });
+          if (history.length > 50) history.pop();
+          chrome.storage.local.set({history: history});
+        } catch (e) {
+          // Extension context invalidated - ignore
+        }
       });
-      if (history.length > 50) history.pop();
-      chrome.storage.local.set({history: history});
-    });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   }
 
   function showError(message) {
