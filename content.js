@@ -14,16 +14,18 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   }
 
   if (request.action === 'getPageContext') {
-    const context = extractPageContext(request.maxLength || 4000);
+    const context = extractPageContext(request.maxLength || 4000, request.skipPromoted);
     sendResponse({context: context});
     return true;
   }
 });
 
-function extractPageContext(maxLength) {
+function extractPageContext(maxLength, skipPromoted) {
+  const onReddit = isReddit();
+
   // Detect Reddit and use specialized extraction
-  if (isReddit()) {
-    return extractRedditContext(maxLength);
+  if (onReddit) {
+    return extractRedditContext(maxLength, skipPromoted);
   }
 
   // Try to find the main content area
@@ -57,6 +59,14 @@ function extractPageContext(maxLength) {
       '.ads', '.advertisement', '.cookie-banner', '.modal'
     ];
 
+    // On Reddit, also strip promoted/sponsored posts if user opted in
+    if (onReddit && skipPromoted) {
+      removeSelectors.push(
+        '[data-testid="ad-post"]', '.promotedlink',
+        '[data-testid="promoted-post"]', '[data-adclicklocation]'
+      );
+    }
+
     for (const sel of removeSelectors) {
       const els = clone.querySelectorAll(sel);
       els.forEach(e => e.remove());
@@ -82,7 +92,7 @@ function isReddit() {
   return window.location.hostname.includes('reddit.com');
 }
 
-function extractRedditContext(maxLength) {
+function extractRedditContext(maxLength, skipPromoted) {
   const parts = [];
 
   // --- POST TITLE ---
@@ -95,6 +105,8 @@ function extractRedditContext(maxLength) {
   for (const sel of titleSelectors) {
     const el = document.querySelector(sel);
     if (el) {
+      // Skip promoted post titles when user opted in
+      if (skipPromoted && isPromotedElement(el)) continue;
       parts.push('[POST TITLE]\n' + cleanText(el.innerText));
       break;
     }
@@ -110,6 +122,7 @@ function extractRedditContext(maxLength) {
   for (const sel of bodySelectors) {
     const el = document.querySelector(sel);
     if (el) {
+      if (skipPromoted && isPromotedElement(el)) continue;
       const body = cleanText(el.innerText);
       if (body.length > 10) {
         parts.push('[POST BODY]\n' + body);
@@ -125,6 +138,7 @@ function extractRedditContext(maxLength) {
   const newComments = document.querySelectorAll('[data-testid="comment"]');
   if (newComments.length > 0) {
     newComments.forEach((comment, i) => {
+      if (skipPromoted && isPromotedElement(comment)) return;
       const authorEl = comment.querySelector('[data-testid="comment_author_link"]');
       const bodyEl = comment.querySelector('[data-testid="comment-content"]');
       if (bodyEl) {
@@ -141,6 +155,7 @@ function extractRedditContext(maxLength) {
   if (commentData.length === 0) {
     const oldComments = document.querySelectorAll('.comment, .entry');
     oldComments.forEach((comment, i) => {
+      if (skipPromoted && isPromotedElement(comment)) return;
       const authorEl = comment.querySelector('.author');
       const bodyEl = comment.querySelector('.usertext-body .md');
       if (bodyEl) {
@@ -188,6 +203,24 @@ function extractRedditContext(maxLength) {
     platform: 'reddit',
     commentCount: commentData.length
   };
+}
+
+// Heuristic: check if an element or its ancestors are clearly a promoted/sponsored post
+function isPromotedElement(el) {
+  if (!el) return false;
+  // Check element and up to 3 ancestors for promoted markers
+  let current = el;
+  for (let i = 0; i < 4 && current; i++) {
+    // Check data-testid and class names
+    const testId = current.getAttribute && current.getAttribute('data-testid');
+    if (testId && /ad|promoted|sponsored/i.test(testId)) return true;
+    const cls = current.className;
+    if (typeof cls === 'string' && /promoted|sponsored|ad-post/i.test(cls)) return true;
+    // Check for explicit "Promoted" text label near the element
+    if (current.innerText && /promoted\s*$/i.test(current.innerText.trim().split('\n')[0])) return true;
+    current = current.parentElement;
+  }
+  return false;
 }
 
 function cleanText(text) {

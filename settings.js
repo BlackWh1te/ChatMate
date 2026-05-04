@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const temperatureValue = document.getElementById('temperature-value');
   const maxTokens = document.getElementById('max-tokens');
   const contextLimit = document.getElementById('context-limit');
+  const skipPromotedReddit = document.getElementById('skip-promoted-reddit');
   const themeToggle = document.getElementById('theme-toggle');
   const success = document.getElementById('success');
   const error = document.getElementById('error');
@@ -64,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
     'streamingEnabled', 'variantCount', 'temperature', 'maxTokens',
-    'referenceUrls', 'contextLimit'
+    'referenceUrls', 'contextLimit', 'skipPromotedReddit'
   ], function(result) {
     ollamaUrlInput.value = result.ollamaUrl || '';
     streamingToggle.checked = result.streamingEnabled !== false;
@@ -73,9 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
     temperatureValue.textContent = temperatureSlider.value;
     maxTokens.value = result.maxTokens || 500;
     contextLimit.value = result.contextLimit || 4000;
+    if (skipPromotedReddit) {
+      skipPromotedReddit.checked = result.skipPromotedReddit !== false;
+    }
 
     // Populate model dropdown
-    populateModelSelect(result.modelName || 'llama2', result.models || []);
+    populateModelSelect(result.modelName || 'llama3', result.models || []);
 
     // Display reference URLs
     displayRefUrls(result.referenceUrls || []);
@@ -184,7 +188,8 @@ document.addEventListener('DOMContentLoaded', function() {
       variantCount: variants,
       temperature: temp,
       maxTokens: tokens,
-      contextLimit: ctxLimit
+      contextLimit: ctxLimit,
+      skipPromotedReddit: skipPromotedReddit ? skipPromotedReddit.checked : true
     }, function() {
       showSuccess('Saved!');
     });

@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     try {
       const settings = await getSettings();
-      const pageContext = await fetchPageContext(settings.contextLimit);
+      const pageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
       if (pageContext && pageContext.text) {
         storedPageText = pageContext.text;
         const isReddit = pageContext.platform === 'reddit';
@@ -338,8 +338,12 @@ document.addEventListener('DOMContentLoaded', function() {
     await generateResponses(text, currentTemplateId);
   });
 
-  async function fetchPageContext(maxLength) {
-    const response = await sendMessageToActiveTab({action: 'getPageContext', maxLength: maxLength || 4000});
+  async function fetchPageContext(maxLength, skipPromoted) {
+    const response = await sendMessageToActiveTab({
+      action: 'getPageContext',
+      maxLength: maxLength || 4000,
+      skipPromoted: skipPromoted
+    });
     if (!response || !response.context) return null;
     return response.context;
   }
@@ -440,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Fetch page context if enabled
       currentPageContext = null;
       if (contextToggle && contextToggle.checked) {
-        currentPageContext = await fetchPageContext(settings.contextLimit);
+        currentPageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
       }
 
       // Fetch reference URLs content
@@ -756,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
         'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
-        'temperature', 'maxTokens', 'contextLimit'
+        'temperature', 'maxTokens', 'contextLimit', 'skipPromotedReddit'
       ], function(result) {
         resolve({
           ollamaUrl: result.ollamaUrl,
@@ -765,7 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
           variantCount: result.variantCount || 1,
           temperature: result.temperature || 0.7,
           maxTokens: result.maxTokens || 500,
-          contextLimit: result.contextLimit || 4000
+          contextLimit: result.contextLimit || 4000,
+          skipPromotedReddit: result.skipPromotedReddit !== false
         });
       });
     });
