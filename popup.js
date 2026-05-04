@@ -424,7 +424,16 @@ document.addEventListener('DOMContentLoaded', function() {
         signal: abortController?.signal
       });
 
-      if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          const available = await getAvailableModels(settings);
+          const hint = available.length > 0
+            ? ` You have: ${available.join(', ')}`
+            : ' Run "ollama list" in your terminal to see available models.';
+          throw new Error(`Model "${settings.modelName}" not found.${hint} Type the correct name in Settings.`);
+        }
+        throw new Error(`Ollama error: ${res.status}`);
+      }
       const data = await res.json();
       return cleanResponse(data.response);
     }
@@ -450,7 +459,16 @@ document.addEventListener('DOMContentLoaded', function() {
       signal: abortController?.signal
     });
 
-    if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        const available = await getAvailableModels({ollamaUrl: url.replace('/api/generate', '')});
+        const hint = available.length > 0
+          ? ` You have: ${available.join(', ')}`
+          : ' Check your model name in Settings, or run "ollama list" in your terminal.';
+        throw new Error(`Model not found.${hint}`);
+      }
+      throw new Error(`Ollama error: ${res.status}`);
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -583,6 +601,20 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Helpers
+  async function getAvailableModels(settings) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.models || []).map(m => m.name || m.model).filter(Boolean);
+    } catch (e) {
+      return [];
+    }
+  }
+
   function getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
