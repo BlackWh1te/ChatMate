@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Populate model dropdown
-    populateModelSelect(result.modelName || 'llama3', result.models || []);
+    populateModelSelect(result.modelName || '', result.models || []);
 
     // Display reference URLs
     displayRefUrls(result.referenceUrls || []);
@@ -120,9 +120,9 @@ document.addEventListener('DOMContentLoaded', function() {
         modelSelect.style.display = 'none';
         modelManual.style.display = 'block';
       } else {
-        chrome.storage.local.set({ models: modelNames });
+        chrome.storage.local.set({ models: modelNames, modelName: modelNames[0] });
         populateModelSelect(modelNames[0], modelNames);
-        showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}`);
+        showSuccess(`Found ${modelNames.length} model${modelNames.length !== 1 ? 's' : ''}. Saved ${modelNames[0]} as default.`);
       }
     } catch (err) {
       showError(`Cannot connect: ${err.message}. Try typing your model name below.`);

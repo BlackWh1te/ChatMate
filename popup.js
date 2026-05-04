@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ], function(result) {
     currentSettings = {
       ollamaUrl: result.ollamaUrl,
-      modelName: result.modelName || 'llama2',
+      modelName: result.modelName || '',
       streamingEnabled: result.streamingEnabled !== false,
       variantCount: result.variantCount || 1,
       temperature: result.temperature || 0.7,
@@ -772,22 +772,61 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  async function resolveModelName(url, savedName) {
+    if (!url) return savedName;
+    try {
+      const available = await getAvailableModels({ ollamaUrl: url });
+      if (available.length === 0) return savedName;
+      // Exact match
+      if (available.includes(savedName)) return savedName;
+      // Empty or missing — pick first available and persist it
+      if (!savedName) {
+        const pick = available[0];
+        chrome.storage.local.set({ modelName: pick });
+        return pick;
+      }
+      // Partial match (e.g. saved "llama3" matches "llama3.1:8b")
+      const partial = available.find(a => a.toLowerCase().startsWith(savedName.toLowerCase()));
+      if (partial) {
+        chrome.storage.local.set({ modelName: partial });
+        return partial;
+      }
+      // Fuzzy: saved name appears anywhere in available name
+      const fuzzy = available.find(a => a.toLowerCase().includes(savedName.toLowerCase()));
+      if (fuzzy) {
+        chrome.storage.local.set({ modelName: fuzzy });
+        return fuzzy;
+      }
+      // Fallback to first available
+      const pick = available[0];
+      chrome.storage.local.set({ modelName: pick });
+      return pick;
+    } catch (e) {
+      return savedName;
+    }
+  }
+
   function getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
         'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
         'temperature', 'maxTokens', 'contextLimit', 'skipPromotedReddit'
-      ], function(result) {
-        resolve({
+      ], async function(result) {
+        const base = {
           ollamaUrl: result.ollamaUrl,
-          modelName: result.modelName || 'llama3',
+          modelName: result.modelName || '',
           streamingEnabled: result.streamingEnabled !== false,
           variantCount: result.variantCount || 1,
           temperature: result.temperature || 0.7,
           maxTokens: result.maxTokens || 500,
           contextLimit: result.contextLimit || 4000,
           skipPromotedReddit: result.skipPromotedReddit !== false
-        });
+        };
+        // Auto-resolve model if missing / stale
+        if (base.ollamaUrl) {
+          base.modelName = await resolveModelName(base.ollamaUrl, base.modelName);
+        }
+        resolve(base);
       });
     });
   }
