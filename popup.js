@@ -642,14 +642,25 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       userContent += '\n\n';
     }
-    if (explicitPageText) {
+    // Truncate page text to avoid overwhelming the model (max ~3000 chars leaves room for prompt)
+    const MAX_PAGE_TEXT = 3000;
+    let truncatedPageText = explicitPageText;
+    if (truncatedPageText && truncatedPageText.length > MAX_PAGE_TEXT) {
+      truncatedPageText = truncatedPageText.substring(0, MAX_PAGE_TEXT) + '\n... [truncated]';
+    }
+    let truncatedContextText = pageContext?.text;
+    if (truncatedContextText && truncatedContextText.length > MAX_PAGE_TEXT) {
+      truncatedContextText = truncatedContextText.substring(0, MAX_PAGE_TEXT) + '\n... [truncated]';
+    }
+
+    if (truncatedPageText) {
       if (pageContext && pageContext.platform === 'reddit') {
-        userContent += `Here is a Reddit post with comments I am reading:\n---\n${explicitPageText}\n---\n\n`;
+        userContent += `Here is a Reddit post with comments I am reading:\n---\n${truncatedPageText}\n---\n\n`;
       } else {
-        userContent += `Here is the full text of the page I am reading:\n---\n${explicitPageText}\n---\n\n`;
+        userContent += `Here is the full text of the page I am reading:\n---\n${truncatedPageText}\n---\n\n`;
       }
-    } else if (pageContext && pageContext.text) {
-      userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;
+    } else if (truncatedContextText) {
+      userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${truncatedContextText}\n---\n\n`;
     }
     if (images && images.length > 0) {
       userContent += `I have also included ${images.length} image${images.length > 1 ? 's' : ''} from the page. Please analyze the image${images.length > 1 ? 's' : ''} together with the text above and answer my question considering both.\n\n`;
@@ -846,7 +857,9 @@ document.addEventListener('DOMContentLoaded', function() {
             : ' Run "ollama list" in your terminal to see available models.';
           throw new Error(`Model "${settings.modelName}" not found.${hint} Type the correct name in Settings.`);
         }
-        throw new Error(`Ollama error: ${res.status}`);
+        let errBody = '';
+        try { errBody = await res.text(); } catch (e) {}
+        throw new Error(`Ollama error ${res.status}: ${errBody || 'Internal server error. Try reducing context or using a smaller model.'}`);
       }
       const data = await res.json();
       return cleanResponse(data.message?.content || data.response || '');
@@ -881,7 +894,9 @@ document.addEventListener('DOMContentLoaded', function() {
           : ' Check your model name in Settings, or run "ollama list" in your terminal.';
         throw new Error(`Model not found.${hint}`);
       }
-      throw new Error(`Ollama error: ${res.status}`);
+      let errBody = '';
+      try { errBody = await res.text(); } catch (e) {}
+      throw new Error(`Ollama error ${res.status}: ${errBody || 'Internal server error. Try reducing context or using a smaller model.'}`);
     }
 
     const reader = res.body.getReader();
