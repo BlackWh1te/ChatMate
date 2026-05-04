@@ -510,9 +510,9 @@
 
     <!-- Connection Settings -->
     <div class="card">
-      <div class="card-title">Your AI Setup</div>
+      <div class="card-title">AI Setup</div>
 
-      <label for="ollama-url">AI Server Address</label>
+      <label for="ollama-url">Server Address</label>
       <div class="row">
         <input type="text" id="ollama-url" placeholder="http://localhost:11434" style="flex: 3;">
         <button class="btn btn-secondary" id="detect-models-btn" style="flex: 1; font-size: 12px;">
@@ -520,22 +520,17 @@
         </button>
       </div>
 
-      <label for="model-select">Model to Use</label>
+      <label for="model-select">Model</label>
       <select id="model-select">
         <option value="">Select a model...</option>
       </select>
-      <input type="text" id="model-manual" placeholder="Exact model tag, e.g. llama3.1:8b, mistral:latest, phi4, gemma2:9b" style="margin-top: 6px; display: none;">
-      <div class="hint">
-        Click <strong>Find Models</strong> to auto-detect, or type the name manually if detection doesn't work.
-      </div>
-      <div class="hint" style="margin-top:4px; color: var(--primary);">
-        👁️ <strong>Vision models</strong> (llama3.2-vision, llava, gemma3, qwen2-vl) can analyze images on the page together with text.
-      </div>
+      <input type="text" id="model-manual" placeholder="Exact model tag, e.g. llama3.1:8b" style="margin-top: 6px; display: none;">
+      <div class="hint">Click <strong>Find Models</strong> to auto-detect.</div>
     </div>
 
     <!-- Generation Settings -->
     <div class="card">
-      <div class="card-title">Reply Style</div>
+      <div class="card-title">Options</div>
 
       <div class="toggle-row">
         <label style="margin: 0;">Show reply as it's being written</label>
@@ -545,40 +540,14 @@
         </label>
       </div>
 
-      <div class="toggle-row">
-        <label style="margin: 0;">How many reply options</label>
-        <select id="variant-count" style="width: auto; margin: 0;">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
-      </div>
-
       <label>Creativity</label>
       <div class="slider-container">
         <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7">
         <span class="slider-value" id="temperature-value">0.7</span>
       </div>
 
-      <label for="max-tokens">Max reply length</label>
+      <label for="max-tokens">Max length</label>
       <input type="number" id="max-tokens" min="50" max="4096" value="500" step="50">
-
-      <label for="context-limit">How much page text to read</label>
-      <input type="number" id="context-limit" min="1000" max="100000" value="4000" step="1000">
-      <div class="hint">
-        Higher numbers let the AI see more of the page. Only change this if you know your model supports large context.
-      </div>
-
-      <div class="toggle-row" style="margin-top: 12px;">
-        <label style="margin: 0;">Skip promoted/sponsored posts on Reddit</label>
-        <label class="switch">
-          <input type="checkbox" id="skip-promoted-reddit" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="hint">
-        When reading Reddit feeds, ignore ads and promoted posts so the AI only sees real content.
-      </div>
     </div>
 
     <!-- Reddit Formatting (moved to per-template) -->
@@ -597,22 +566,6 @@
       4. Click <strong>Find Models</strong> above → Save
     </div>
 
-    <!-- Reference URLs -->
-    <div class="card">
-      <div class="card-title">Helpful Links</div>
-      <div style="font-size: 12px; color: var(--secondary-text); margin-bottom: 10px;">
-        Add links to your FAQ, docs, or knowledge base. The AI will read them to write better replies.
-      </div>
-
-      <div class="row" style="margin-bottom: 8px;">
-        <input type="text" id="ref-url-input" placeholder="https://example.com/faq" style="flex: 3;">
-        <input type="text" id="ref-url-label" placeholder="Name (optional)" style="flex: 2;">
-        <button class="btn btn-success" id="add-ref-url-btn" style="flex: 1; font-size: 12px;">+ Add</button>
-      </div>
-
-      <div id="ref-urls-list" class="templates-list"></div>
-    </div>
-
     <!-- Response Templates -->
     <div class="card">
       <div class="card-title">Saved Tones</div>
@@ -620,7 +573,7 @@
       <label for="template-name">Name</label>
       <input type="text" id="template-name" placeholder="e.g., Friendly">
 
-      <label for="template-prompt">Instructions for the AI</label>
+      <label for="template-prompt">Instructions</label>
       <input type="text" id="template-prompt" placeholder="e.g., Write like a friendly coworker">
 
       <div class="toggle-row" style="margin-top: 8px;">
@@ -630,92 +583,39 @@
           <span class="slider"></span>
         </label>
       </div>
-      <div class="hint">
-        When enabled, this tone will auto-read Reddit pages and use Reddit formatting. Only use for Reddit replies.
-      </div>
 
       <div id="template-reddit-fmt" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <div style="font-size: 12px; color: var(--secondary-text); font-weight: 600;">
-            Reddit Markdown Formatting:
-          </div>
-          <div style="display: flex; gap: 6px;">
-            <button type="button" id="tfmt-select-all" class="fmt-quick-btn">All</button>
-            <button type="button" id="tfmt-select-none" class="fmt-quick-btn">None</button>
-          </div>
-        </div>
+        <div style="font-size: 12px; color: var(--secondary-text); margin-bottom: 10px;">Reddit formatting:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="tfmt-bold">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size: 12px;">Bold</span>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-          <div class="fmt-category-card">
-            <div style="font-size: 11px; color: var(--secondary-text); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Text Styling</div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;"><strong>Bold</strong></label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-bold">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;"><em>Italic</em></label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-italic">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;">Headings</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-heading">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row">
-              <label style="margin: 0; font-size: 12px;">Quote</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-quote">
-                <span class="slider"></span>
-              </label>
-            </div>
-          </div>
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="tfmt-italic">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size: 12px;">Italic</span>
 
-          <div class="fmt-category-card">
-            <div style="font-size: 11px; color: var(--secondary-text); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Lists & Code</div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;">Bullet list</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-bullet">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;">Numbered list</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-numlist">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;">Inline code</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-inlinecode">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row" style="margin-bottom: 6px;">
-              <label style="margin: 0; font-size: 12px;">Code block</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-codeblock">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row">
-              <label style="margin: 0; font-size: 12px;">Table</label>
-              <label class="switch" style="margin: 0; transform: scale(0.85);">
-                <input type="checkbox" id="tfmt-table">
-                <span class="slider"></span>
-              </label>
-            </div>
-          </div>
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="tfmt-quote">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size: 12px;">Quote</span>
+
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="tfmt-codeblock">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size: 12px;">Code</span>
+
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="tfmt-bullet">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size: 12px;">Lists</span>
         </div>
       </div>
 
@@ -728,9 +628,9 @@
 
     <!-- History -->
     <div class="card">
-      <div class="card-title">Past Replies</div>
+      <div class="card-title">History</div>
 
-      <input type="text" id="history-search" class="search-box" placeholder="Search past replies...">
+      <input type="text" id="history-search" class="search-box" placeholder="Search...">
 
       <div class="btn-group" style="margin-bottom: 10px;">
         <button class="btn btn-secondary small-btn" id="export-history-btn">📤 Export</button>

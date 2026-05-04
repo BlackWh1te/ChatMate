@@ -199,11 +199,8 @@ document.addEventListener('DOMContentLoaded', function() {
     themeToggle.title = theme === 'dark' ? 'Toggle light mode' : 'Toggle dark mode';
   }
 
-  chrome.storage.local.get(['theme', 'contextEnabled'], function(result) {
+  chrome.storage.local.get(['theme'], function(result) {
     applyTheme(result.theme || 'light');
-    if (contextToggle) {
-      contextToggle.checked = result.contextEnabled !== false;
-    }
   });
 
   themeToggle.addEventListener('click', function() {
@@ -212,12 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
     applyTheme(newTheme);
     chrome.storage.local.set({theme: newTheme});
   });
-
-  if (contextToggle) {
-    contextToggle.addEventListener('change', function() {
-      chrome.storage.local.set({contextEnabled: contextToggle.checked});
-    });
-  }
 
   // Sidebar mode UI setup
   if (isSidebarMode) {
@@ -321,12 +312,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const template = [...BUILTIN_TEMPLATES, ...customTemplates].find(t => t.id === templateId);
 
     if (template && template.reddit) {
-      // Reddit-specific tone selected: enable context and auto-read page
-      contextToggle.checked = true;
-      chrome.storage.local.set({contextEnabled: true});
-      // Auto-read page if not already read
+      // Reddit-specific tone selected: auto-read page if not already read
       if (!storedPageText) {
-        readPageBtn.click();
+        await readPage();
       }
     }
   });
@@ -355,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function updateVariantButtons(count) {
+    variantSelector.style.display = count > 1 ? 'flex' : 'none';
     const buttons = variantSelector.querySelectorAll('.tab-btn');
     buttons.forEach((btn, i) => {
       btn.style.display = i < count ? 'block' : 'none';
@@ -557,6 +546,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     currentInput = text;
     currentTemplateId = templateSelect.value;
+
+    // Auto-read page if not already read (context is always on now)
+    if (!storedPageText) {
+      await readPage();
+    }
+
     await generateResponses(text, currentTemplateId);
   });
 
@@ -1060,16 +1055,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Clean button - strip thinking tags and formatting from current response
-  cleanBtn.addEventListener('click', function() {
-    if (!responseCards[activeVariant]) return;
-    const rawText = responseCards[activeVariant].textContent;
-    if (!rawText) return;
-    const cleaned = cleanResponse(rawText);
-    responseCards[activeVariant].textContent = cleaned;
-    showToast('Cleaned up!', 'success');
-  });
-
   // Clear button - remove all responses and storage
   clearBtn.addEventListener('click', function() {
     responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
@@ -1078,15 +1063,6 @@ document.addEventListener('DOMContentLoaded', function() {
     currentInput = '';
     updateActionButtons();
     showToast('Cleared', 'success');
-  });
-
-  // Regenerate button
-  regenerateBtn.addEventListener('click', async function() {
-    if (!currentInput) {
-      showError('Write a reply first, then you can redo it');
-      return;
-    }
-    await generateResponses(currentInput, currentTemplateId);
   });
 
   // Feedback buttons

@@ -778,39 +778,20 @@
     </div>
 
     <div class="card">
-      <div class="toggle-row" style="margin-bottom: 8px;">
-        <label style="margin: 0;">Use this page for context</label>
-        <label class="switch" style="margin: 0;">
-          <input type="checkbox" id="context-toggle">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <p class="card-hint">
-        When on, the AI reads the page you're on to write a better reply.
-      </p>
-    </div>
-
-    <div class="card">
-      <label for="template-select">Tone</label>
-      <select id="template-select">
+      <label for="template-select" style="margin-bottom: 8px;">Tone</label>
+      <select id="template-select" style="margin-bottom: 12px;">
         <option value="">Default</option>
       </select>
-    </div>
 
-    <div class="card">
-      <div class="grab-row">
-        <label for="input-text">What do you want to reply to?</label>
-        <button class="grab-btn" id="grab-text-btn" title="Grab currently selected text on the page">📋 Grab</button>
+      <div class="grab-row" style="margin-bottom: 8px;">
+        <label for="input-text">Your message</label>
+        <button class="grab-btn" id="grab-text-btn" title="Grab selected text">📋</button>
       </div>
-      <textarea id="input-text" placeholder="Highlight text on a page, or type here..."></textarea>
-      <div class="btn-row">
-        <button class="btn btn-secondary" id="read-page-btn" style="flex: 1;">
-          <span>📖</span> Read Page
-        </button>
-        <button class="btn btn-block" id="generate-btn" style="flex: 2;">
-          <span>✨</span> Write a Reply
-        </button>
-      </div>
+      <textarea id="input-text" placeholder="Type your message here..." style="margin-bottom: 10px;"></textarea>
+
+      <button class="btn btn-block" id="generate-btn">
+        <span>✨</span> Generate Reply
+      </button>
       <div class="page-preview" id="page-preview"></div>
     </div>
 
@@ -822,59 +803,36 @@
     <div class="error" id="error"></div>
 
     <div class="responses-container" id="responses-container">
-      <div class="variant-selector" id="variant-selector">
-        <button class="tab-btn active" data-variant="0">Option 1</button>
-        <button class="tab-btn" data-variant="1">Option 2</button>
-        <button class="tab-btn" data-variant="2">Option 3</button>
+      <div class="variant-selector" id="variant-selector" style="display: none;">
+        <button class="tab-btn active" data-variant="0">1</button>
+        <button class="tab-btn" data-variant="1">2</button>
+        <button class="tab-btn" data-variant="2">3</button>
       </div>
       <div class="response-card active" id="response-0"></div>
       <div class="response-card" id="response-1"></div>
       <div class="response-card" id="response-2"></div>
 
       <div class="feedback-bar" id="feedback-bar">
-        <span>Was this reply helpful?</span>
-        <button class="feedback-btn" id="feedback-up" title="Good reply — use this style more">👍</button>
-        <button class="feedback-btn" id="feedback-down" title="Bad reply — off-topic or irrelevant">👎</button>
-        <span class="feedback-thanks" id="feedback-thanks">Thanks for feedback!</span>
-      </div>
-
-      <div class="response-meta">
-        <span id="model-info" class="model-info"></span>
-        <span id="token-info" class="model-info"></span>
+        <button class="feedback-btn" id="feedback-up" title="Helpful">👍</button>
+        <button class="feedback-btn" id="feedback-down" title="Not helpful">👎</button>
+        <span class="feedback-thanks" id="feedback-thanks">Thanks!</span>
       </div>
 
       <div class="btn-group">
-        <button class="btn btn-success" id="copy-btn">
-          <span>📋</span> Copy
-        </button>
-        <button class="btn btn-secondary" id="clean-btn" title="Remove thinking tags and extra formatting">
-          <span>🧹</span> Clean
-        </button>
-        <button class="btn btn-secondary" id="clear-btn" title="Clear all responses">
-          <span>🗑</span> Clear
-        </button>
-        <button class="btn btn-secondary" id="paste-btn">
-          <span>📥</span> Paste
-        </button>
-        <button class="btn btn-secondary" id="regenerate-btn">
-          <span>🔄</span> Redo
-        </button>
+        <button class="btn btn-success" id="copy-btn">📋 Copy</button>
+        <button class="btn btn-secondary" id="paste-btn">📥 Paste</button>
+        <button class="btn btn-secondary" id="clear-btn">🗑 Clear</button>
       </div>
 
       <div class="empty-state-box" id="responses-empty">
         <div class="empty-icon">✨</div>
-        <p>Your replies will appear here.<br>Type something and click <strong>Write a Reply</strong>.</p>
+        <p>Type a message and click <strong>Generate Reply</strong></p>
       </div>
     </div>
 
     <div class="footer">
-      <div class="footer-left">
-        <a href="settings.html" target="_blank">⚙️ Settings</a>
-        <span class="footer-hint">
-          <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">G</span> to generate
-        </span>
-      </div>
-      <span class="model-info" id="footer-info"></span>
+      <a href="settings.html" target="_blank">⚙️ Settings</a>
+      <span class="model-info" id="footer-info" style="margin-left: auto;"></span>
     </div>
   </div>
 

@@ -20,45 +20,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const detectModelsBtn = document.getElementById('detect-models-btn');
   const saveBtn = document.getElementById('save-btn');
   const streamingToggle = document.getElementById('streaming-toggle');
-  const variantCount = document.getElementById('variant-count');
   const temperatureSlider = document.getElementById('temperature');
   const temperatureValue = document.getElementById('temperature-value');
   const maxTokens = document.getElementById('max-tokens');
-  const contextLimit = document.getElementById('context-limit');
-  const skipPromotedReddit = document.getElementById('skip-promoted-reddit');
   const themeToggle = document.getElementById('theme-toggle');
   const success = document.getElementById('success');
   const error = document.getElementById('error');
-
-  // Reddit formatting toggles (global - deprecated, kept for migration)
-  const fmtBold = document.getElementById('fmt-bold');
-  const fmtItalic = document.getElementById('fmt-italic');
-  const fmtHeading = document.getElementById('fmt-heading');
-  const fmtBullet = document.getElementById('fmt-bullet');
-  const fmtNumlist = document.getElementById('fmt-numlist');
-  const fmtQuote = document.getElementById('fmt-quote');
-  const fmtInlinecode = document.getElementById('fmt-inlinecode');
-  const fmtCodeblock = document.getElementById('fmt-codeblock');
-  const fmtTable = document.getElementById('fmt-table');
 
   // Template-specific Reddit formatting
   const templateReddit = document.getElementById('template-reddit');
   const templateRedditFmt = document.getElementById('template-reddit-fmt');
   const tfmtBold = document.getElementById('tfmt-bold');
   const tfmtItalic = document.getElementById('tfmt-italic');
-  const tfmtHeading = document.getElementById('tfmt-heading');
-  const tfmtBullet = document.getElementById('tfmt-bullet');
-  const tfmtNumlist = document.getElementById('tfmt-numlist');
   const tfmtQuote = document.getElementById('tfmt-quote');
-  const tfmtInlinecode = document.getElementById('tfmt-inlinecode');
   const tfmtCodeblock = document.getElementById('tfmt-codeblock');
-  const tfmtTable = document.getElementById('tfmt-table');
-
-  // Reference URLs
-  const refUrlInput = document.getElementById('ref-url-input');
-  const refUrlLabelInput = document.getElementById('ref-url-label');
-  const addRefUrlBtn = document.getElementById('add-ref-url-btn');
-  const refUrlsList = document.getElementById('ref-urls-list');
+  const tfmtBullet = document.getElementById('tfmt-bullet');
 
   // Templates
   const templateNameInput = document.getElementById('template-name');
@@ -111,61 +87,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Select All / None buttons for Reddit formatting
-  const tfmtSelectAll = document.getElementById('tfmt-select-all');
-  const tfmtSelectNone = document.getElementById('tfmt-select-none');
-  const tfmtCheckboxes = [
-    tfmtBold, tfmtItalic, tfmtHeading, tfmtQuote,
-    tfmtBullet, tfmtNumlist, tfmtInlinecode, tfmtCodeblock, tfmtTable
-  ].filter(Boolean);
-
-  if (tfmtSelectAll) {
-    tfmtSelectAll.addEventListener('click', function() {
-      tfmtCheckboxes.forEach(cb => cb.checked = true);
-    });
-  }
-
-  if (tfmtSelectNone) {
-    tfmtSelectNone.addEventListener('click', function() {
-      tfmtCheckboxes.forEach(cb => cb.checked = false);
-    });
-  }
-
   // Load current settings
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'history',
-    'streamingEnabled', 'variantCount', 'temperature', 'maxTokens',
-    'referenceUrls', 'contextLimit', 'skipPromotedReddit',
-    'redditFormatting'
+    'streamingEnabled', 'temperature', 'maxTokens'
   ], function(result) {
     ollamaUrlInput.value = result.ollamaUrl || '';
     streamingToggle.checked = result.streamingEnabled !== false;
-    variantCount.value = result.variantCount || 1;
     temperatureSlider.value = result.temperature || 0.7;
     temperatureValue.textContent = temperatureSlider.value;
     maxTokens.value = result.maxTokens || 500;
-    contextLimit.value = result.contextLimit || 4000;
-    if (skipPromotedReddit) {
-      skipPromotedReddit.checked = result.skipPromotedReddit !== false;
-    }
-
-    // Load Reddit formatting (default all false)
-    const fmt = result.redditFormatting || {};
-    if (fmtBold) fmtBold.checked = !!fmt.bold;
-    if (fmtItalic) fmtItalic.checked = !!fmt.italic;
-    if (fmtHeading) fmtHeading.checked = !!fmt.heading;
-    if (fmtBullet) fmtBullet.checked = !!fmt.bullet;
-    if (fmtNumlist) fmtNumlist.checked = !!fmt.numlist;
-    if (fmtQuote) fmtQuote.checked = !!fmt.quote;
-    if (fmtInlinecode) fmtInlinecode.checked = !!fmt.inlinecode;
-    if (fmtCodeblock) fmtCodeblock.checked = !!fmt.codeblock;
-    if (fmtTable) fmtTable.checked = !!fmt.table;
 
     // Populate model dropdown
     populateModelSelect(result.modelName || '', result.models || []);
-
-    // Display reference URLs
-    displayRefUrls(result.referenceUrls || []);
 
     // Display templates
     displayTemplates(result.templates || []);
@@ -263,10 +197,8 @@ document.addEventListener('DOMContentLoaded', function() {
       ? modelManual.value.trim()
       : modelSelect.value.trim();
     const streaming = streamingToggle.checked;
-    const variants = parseInt(variantCount.value);
     const temp = parseFloat(temperatureSlider.value);
     const tokens = parseInt(maxTokens.value);
-    const ctxLimit = parseInt(contextLimit.value) || 4000;
 
     if (!ollamaUrl) {
       showError('Ollama URL is required');
@@ -281,89 +213,12 @@ document.addEventListener('DOMContentLoaded', function() {
       ollamaUrl: ollamaUrl,
       modelName: modelName,
       streamingEnabled: streaming,
-      variantCount: variants,
       temperature: temp,
-      maxTokens: tokens,
-      contextLimit: ctxLimit,
-      skipPromotedReddit: skipPromotedReddit ? skipPromotedReddit.checked : true,
-      redditFormatting: {
-        bold: fmtBold ? fmtBold.checked : false,
-        italic: fmtItalic ? fmtItalic.checked : false,
-        heading: fmtHeading ? fmtHeading.checked : false,
-        bullet: fmtBullet ? fmtBullet.checked : false,
-        numlist: fmtNumlist ? fmtNumlist.checked : false,
-        quote: fmtQuote ? fmtQuote.checked : false,
-        inlinecode: fmtInlinecode ? fmtInlinecode.checked : false,
-        codeblock: fmtCodeblock ? fmtCodeblock.checked : false,
-        table: fmtTable ? fmtTable.checked : false
-      }
+      maxTokens: tokens
     }, function() {
       showSuccess('Saved!');
     });
   });
-
-  // Reference URLs
-  addRefUrlBtn.addEventListener('click', function() {
-    const url = refUrlInput.value.trim();
-    const label = refUrlLabelInput.value.trim();
-
-    if (!url) {
-      showError('Please enter a URL');
-      return;
-    }
-    if (!/^https?:\/\//.test(url)) {
-      showError('URL must start with http:// or https://');
-      return;
-    }
-
-    chrome.storage.local.get(['referenceUrls'], function(result) {
-      const urls = result.referenceUrls || [];
-      urls.push({ url, label: label || url, id: Date.now() });
-      chrome.storage.local.set({ referenceUrls: urls }, function() {
-        displayRefUrls(urls);
-        refUrlInput.value = '';
-        refUrlLabelInput.value = '';
-        showSuccess('Reference URL added!');
-      });
-    });
-  });
-
-  function displayRefUrls(urls) {
-    if (!urls || urls.length === 0) {
-      refUrlsList.innerHTML = '<div class="empty-state">No reference URLs yet</div>';
-      return;
-    }
-
-    refUrlsList.innerHTML = urls.map(item => `
-      <div class="template-item" data-id="${item.id}">
-        <div class="template-info">
-          <div class="template-name">${escapeHtml(item.label)}</div>
-          <div class="template-prompt">${escapeHtml(item.url)}</div>
-        </div>
-        <div class="template-actions">
-          <button class="btn btn-danger small-btn delete-ref-url" data-id="${item.id}">Delete</button>
-        </div>
-      </div>
-    `).join('');
-
-    refUrlsList.querySelectorAll('.delete-ref-url').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const id = parseInt(this.dataset.id);
-        deleteRefUrl(id);
-      });
-    });
-  }
-
-  function deleteRefUrl(id) {
-    if (!confirm('Delete this reference URL?')) return;
-
-    chrome.storage.local.get(['referenceUrls'], function(result) {
-      const urls = (result.referenceUrls || []).filter(u => u.id !== id);
-      chrome.storage.local.set({ referenceUrls: urls }, function() {
-        displayRefUrls(urls);
-      });
-    });
-  }
 
   // Templates
   addTemplateBtn.addEventListener('click', function() {
@@ -379,13 +234,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const redditFmt = isReddit ? {
       bold: tfmtBold ? tfmtBold.checked : false,
       italic: tfmtItalic ? tfmtItalic.checked : false,
-      heading: tfmtHeading ? tfmtHeading.checked : false,
-      bullet: tfmtBullet ? tfmtBullet.checked : false,
-      numlist: tfmtNumlist ? tfmtNumlist.checked : false,
       quote: tfmtQuote ? tfmtQuote.checked : false,
-      inlinecode: tfmtInlinecode ? tfmtInlinecode.checked : false,
       codeblock: tfmtCodeblock ? tfmtCodeblock.checked : false,
-      table: tfmtTable ? tfmtTable.checked : false
+      bullet: tfmtBullet ? tfmtBullet.checked : false
     } : null;
 
     chrome.storage.local.get(['templates'], function(result) {
@@ -400,13 +251,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset formatting toggles
         if (tfmtBold) tfmtBold.checked = false;
         if (tfmtItalic) tfmtItalic.checked = false;
-        if (tfmtHeading) tfmtHeading.checked = false;
-        if (tfmtBullet) tfmtBullet.checked = false;
-        if (tfmtNumlist) tfmtNumlist.checked = false;
         if (tfmtQuote) tfmtQuote.checked = false;
-        if (tfmtInlinecode) tfmtInlinecode.checked = false;
         if (tfmtCodeblock) tfmtCodeblock.checked = false;
-        if (tfmtTable) tfmtTable.checked = false;
+        if (tfmtBullet) tfmtBullet.checked = false;
         showSuccess('Tone saved!');
       });
     });
