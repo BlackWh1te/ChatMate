@@ -1,3 +1,5 @@
+![ChatMate Banner](banner.png)
+
 # ChatMate - AI Chat Assistant
 
 Get AI help writing replies on any website. Works with your own computer's AI (via Ollama) — no subscriptions, no data sent to the cloud.
