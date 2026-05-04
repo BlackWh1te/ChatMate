@@ -18,8 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const pasteBtn = document.getElementById('paste-btn');
   const themeToggle = document.getElementById('theme-toggle');
   const statusBadge = document.getElementById('status-badge');
-  const modelInfo = document.getElementById('model-info');
-  const tokenInfo = document.getElementById('token-info');
   const footerInfo = document.getElementById('footer-info');
   const toast = document.getElementById('toast');
   const pagePreview = document.getElementById('page-preview');
@@ -721,29 +719,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Get template prompt — use a strong default if no template selected
       let systemPrompt = BUILTIN_TEMPLATES[0].prompt; // Default to "Casual"
+      let template = null;
       if (templateId) {
         const templates = await getTemplates();
-        const template = templates.find(t => t.id == templateId);
+        template = templates.find(t => t.id == templateId);
         if (template) systemPrompt = template.prompt;
       }
 
       // If template is Reddit-specific, use its formatting options
-      // Otherwise, only apply formatting if explicitly enabled in global settings (legacy)
       if (template && template.reddit && template.redditFormatting) {
         const fmtInstr = buildFormattingInstruction(template.redditFormatting);
         if (fmtInstr) {
           systemPrompt += '\n\n' + fmtInstr;
-        }
-      } else if (settings.redditFormatting) {
-        // Legacy: apply global formatting if template is not Reddit-specific
-        // but only if we're actually on Reddit (to avoid applying Reddit formatting to non-Reddit sites)
-        const isRedditContext = (currentPageContext && currentPageContext.platform === 'reddit') ||
-          (storedPageText && storedPageText.includes('[POST TITLE]'));
-        if (isRedditContext) {
-          const fmtInstr = buildFormattingInstruction(settings.redditFormatting);
-          if (fmtInstr) {
-            systemPrompt += '\n\n' + fmtInstr;
-          }
         }
       }
 
@@ -760,7 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
         responseCards[0].textContent = cleanResponse(result);
         showResponses(true);
         setActiveVariant(0);
-        updateModelInfo(settings, currentPageContext);
+        await updateModelInfo(settings, currentPageContext);
 
         // Persist response across popup closes
         const responsesToSave = [{
@@ -792,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
     isGenerating = false;
     abortController = null;
     generateBtn.classList.remove('btn-thinking');
-    generateBtn.innerHTML = '<span>⚡</span> Write a Reply';
+    generateBtn.innerHTML = '<span>⚡</span> Generate Reply';
     generateBtn.style.background = '';
     loading.classList.remove('show');
   }
@@ -1011,10 +998,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2500);
   }
 
-  function updateModelInfo(settings, pageContext) {
+  async function updateModelInfo(settings, pageContext) {
     const visionBadge = isVisionModel(settings.modelName) ? ' 👁️' : '';
-    modelInfo.textContent = `Model: ${settings.modelName}${visionBadge}`;
-    tokenInfo.textContent = '';
     let footerText = `${settings.modelName}${visionBadge} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
     if (pageContext && pageContext.title) {
       footerText += ` • Context: ${pageContext.title}`;
@@ -1023,20 +1008,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (imageCount > 0) {
       footerText += ` • ${imageCount} image${imageCount > 1 ? 's' : ''}`;
     }
-    // Show formatting badge when using Reddit-specific tone or on Reddit with global formatting
-    const templates = await getTemplates();
-    const template = templates.find(t => t.id == currentTemplateId);
-    if (template && template.reddit && template.redditFormatting) {
-      const fmtKeys = Object.keys(template.redditFormatting).filter(k => template.redditFormatting[k]);
-      if (fmtKeys.length > 0) {
-        footerText += ` • 📝 ${fmtKeys.length} format${fmtKeys.length > 1 ? 's' : ''}`;
-      }
-    } else if (settings.redditFormatting) {
-      // Legacy: show global formatting only if on Reddit
-      const isRedditCtx = (pageContext && pageContext.platform === 'reddit') ||
-        (storedPageText && storedPageText.includes('[POST TITLE]'));
-      if (isRedditCtx) {
-        const fmtKeys = Object.keys(settings.redditFormatting).filter(k => settings.redditFormatting[k]);
+    // Show formatting badge when using Reddit-specific tone
+    if (currentTemplateId) {
+      const templates = await getTemplates();
+      const template = templates.find(t => t.id == currentTemplateId);
+      if (template && template.reddit && template.redditFormatting) {
+        const fmtKeys = Object.keys(template.redditFormatting).filter(k => template.redditFormatting[k]);
         if (fmtKeys.length > 0) {
           footerText += ` • 📝 ${fmtKeys.length} format${fmtKeys.length > 1 ? 's' : ''}`;
         }
