@@ -328,8 +328,12 @@ function extractRedditContext(maxLength, skipPromoted) {
 function cleanAuthor(raw) {
   if (!raw) return '';
   let name = raw.toString().trim();
+  // Remove "/user/" prefix if present from href attributes
+  name = name.replace(/^\/user\//, '');
   // Remove "u/" prefix if present from href attributes
   name = name.replace(/^\/?u\//, '');
+  // Remove trailing slashes
+  name = name.replace(/\/+$/, '');
   // Remove "OP" or "MOD" badges that appear next to usernames
   name = name.replace(/\s*(OP|MOD)\s*$/i, '');
   // Remove common trailing text like "• 2h ago"
