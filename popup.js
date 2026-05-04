@@ -456,6 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
         header += `:</strong>`;
 
         let authorHint = '';
+        let debugHint = '';
         if (isReddit && pageContext.commentCount) {
           const authors = extractAuthorList(pageContext.text);
           if (authors.length > 0) {
@@ -464,16 +465,31 @@ document.addEventListener('DOMContentLoaded', function() {
             authorHint = `<div style="margin:6px 0;font-size:11px;color:var(--secondary-text);">Commenters: ${names}${more}</div>`;
           }
         }
+        // Show debug info when Reddit extraction finds very few or no comments
+        if (isReddit && pageContext.debug && pageContext.commentCount < 3) {
+          const dbg = pageContext.debug;
+          debugHint = `<div style="margin:8px 0;padding:6px 8px;background:var(--error-bg);border-radius:6px;font-size:11px;color:var(--error-text);border:1px solid var(--border-color);">
+            <strong>⚠️ Comment extraction issue</strong><br>
+            Strategies tried: ${dbg.strategiesTried.join(' · ')}<br>
+            ${dbg.extractedAuthors.length > 0 ? `Found authors: ${dbg.extractedAuthors.slice(0,5).join(', ')}<br>` : 'No authors found.<br>'}
+            <em>If this is wrong, try scrolling down to load more comments, then click Read Page again.</em>
+          </div>`;
+        }
 
         const hint = isReddit
           ? `<em>Ask about the post or reply to a commenter (e.g., "Reply to u/SomeUser", "What does comment #3 say?")</em>`
           : `<em>Now type your question below (e.g., "What was on page 210?")</em>`;
-        pagePreview.innerHTML = `${header}<br>${authorHint}<br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
+        pagePreview.innerHTML = `${header}<br>${authorHint}${debugHint}<br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
         pagePreview.classList.add('show');
         const toastParts = [`Read ${pageContext.text.length.toLocaleString()} characters`];
         if (isReddit && pageContext.commentCount) toastParts.push(`${pageContext.commentCount} comments`);
         if (imageCount > 0) toastParts.push(`${imageCount} image${imageCount > 1 ? 's' : ''}`);
-        showToast(toastParts.join(' • '), 'success');
+        // Warn if Reddit extraction found very few comments
+        if (isReddit && pageContext.commentCount < 3) {
+          showToast(toastParts.join(' • ') + ' — ⚠️ Few comments found. Scroll down and re-read if needed.', 'warning');
+        } else {
+          showToast(toastParts.join(' • '), 'success');
+        }
         // Focus the input so user can type their question
         inputText.focus();
       } else {

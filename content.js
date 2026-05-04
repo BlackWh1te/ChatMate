@@ -161,7 +161,6 @@ function extractRedditContext(maxLength, skipPromoted) {
   for (const sel of titleSelectors) {
     const el = document.querySelector(sel);
     if (el) {
-      // Skip promoted post titles when user opted in
       if (skipPromoted && isPromotedElement(el)) continue;
       parts.push('[POST TITLE]\n' + cleanText(el.innerText));
       break;
@@ -188,26 +187,56 @@ function extractRedditContext(maxLength, skipPromoted) {
   }
 
   // --- COMMENTS ---
+  // Try multiple strategies to find comments, newest to oldest Reddit DOM variants
   const commentData = [];
+  const seenAuthors = new Set(); // dedupe safeguard
 
-  // New Reddit comment selectors
+  // Strategy 1: New Reddit data-testid comments (most common)
   const newComments = document.querySelectorAll('[data-testid="comment"]');
   if (newComments.length > 0) {
     newComments.forEach((comment, i) => {
       if (skipPromoted && isPromotedElement(comment)) return;
-      const authorEl = comment.querySelector('[data-testid="comment_author_link"]');
-      const bodyEl = comment.querySelector('[data-testid="comment-content"]');
+      // Use :scope > to avoid matching nested child comments' elements
+      const authorEl = comment.querySelector(':scope > div [data-testid="comment_author_link"], :scope [data-testid="comment_author_link"]');
+      // Try multiple content selectors — Reddit changes these often
+      const bodyEl = comment.querySelector('[data-testid="comment-content"]')
+        || comment.querySelector('[data-click-id="text"]')
+        || comment.querySelector('.md')
+        || comment.querySelector('[slot="comment"]')
+        || comment.querySelector('div[data-testid="comment"] > div > div');
       if (bodyEl) {
-        commentData.push({
-          author: authorEl ? authorEl.innerText : 'unknown',
-          body: cleanText(bodyEl.innerText),
-          index: i + 1
-        });
+        const author = cleanAuthor(authorEl ? authorEl.innerText : '');
+        const body = cleanText(bodyEl.innerText);
+        // Avoid duplicates (same author + same first 60 chars)
+        const sig = (author + '|' + body.substring(0, 60)).toLowerCase();
+        if (seenAuthors.has(sig)) return;
+        seenAuthors.add(sig);
+        commentData.push({ author: author || 'unknown', body, index: i + 1 });
       }
     });
   }
 
-  // Old Reddit comment selectors (fallback)
+  // Strategy 2: shreddit-comment web component (Reddit's newer design system)
+  if (commentData.length === 0) {
+    const shredditComments = document.querySelectorAll('shreddit-comment');
+    shredditComments.forEach((comment, i) => {
+      if (skipPromoted && isPromotedElement(comment)) return;
+      // Author might be in an anchor or span near the top
+      const authorEl = comment.querySelector('a[href^="/user/"], a[href^="/u/"], .author-name, [data-testid="comment_author_link"]');
+      // Content might be in a specific slot or child div
+      const bodyEl = comment.querySelector('[slot="comment"], .comment-body, [data-testid="comment-content"], .md');
+      if (bodyEl) {
+        const author = cleanAuthor(authorEl ? (authorEl.getAttribute('href') || authorEl.innerText) : '');
+        const body = cleanText(bodyEl.innerText);
+        const sig = (author + '|' + body.substring(0, 60)).toLowerCase();
+        if (seenAuthors.has(sig)) return;
+        seenAuthors.add(sig);
+        commentData.push({ author: author || 'unknown', body, index: i + 1 });
+      }
+    });
+  }
+
+  // Strategy 3: Old Reddit / RES fallback
   if (commentData.length === 0) {
     const oldComments = document.querySelectorAll('.comment, .entry');
     oldComments.forEach((comment, i) => {
@@ -215,23 +244,42 @@ function extractRedditContext(maxLength, skipPromoted) {
       const authorEl = comment.querySelector('.author');
       const bodyEl = comment.querySelector('.usertext-body .md');
       if (bodyEl) {
-        commentData.push({
-          author: authorEl ? authorEl.innerText : 'unknown',
-          body: cleanText(bodyEl.innerText),
-          index: i + 1
-        });
+        const author = cleanAuthor(authorEl ? authorEl.innerText : '');
+        const body = cleanText(bodyEl.innerText);
+        const sig = (author + '|' + body.substring(0, 60)).toLowerCase();
+        if (seenAuthors.has(sig)) return;
+        seenAuthors.add(sig);
+        commentData.push({ author: author || 'unknown', body, index: i + 1 });
       }
     });
   }
 
-  // Add comments to parts (top 20 most relevant)
+  // Strategy 4: Last resort — grab any element that looks like a comment tree item
+  if (commentData.length === 0) {
+    const treeItems = document.querySelectorAll('[class*="comment"], [class*="Comment"]');
+    treeItems.forEach((el, i) => {
+      if (skipPromoted && isPromotedElement(el)) return;
+      // Skip very small elements (likely icons, buttons)
+      if (el.innerText.length < 30) return;
+      const text = cleanText(el.innerText);
+      // Try to extract author from nearby links
+      const authorEl = el.querySelector('a[href*="/user/"], a[href*="/u/"]');
+      const author = cleanAuthor(authorEl ? (authorEl.getAttribute('href') || authorEl.innerText) : '');
+      const sig = (author + '|' + text.substring(0, 60)).toLowerCase();
+      if (seenAuthors.has(sig)) return;
+      seenAuthors.add(sig);
+      commentData.push({ author: author || 'unknown', body: text, index: i + 1 });
+    });
+  }
+
+  // Add comments to parts
   if (commentData.length > 0) {
     parts.push('[COMMENTS]');
-    commentData.slice(0, 20).forEach(c => {
+    commentData.slice(0, 30).forEach(c => {
       parts.push(`Comment #${c.index} by u/${c.author}:\n${c.body}`);
     });
-    if (commentData.length > 20) {
-      parts.push(`... and ${commentData.length - 20} more comments`);
+    if (commentData.length > 30) {
+      parts.push(`... and ${commentData.length - 30} more comments`);
     }
   }
 
@@ -239,7 +287,6 @@ function extractRedditContext(maxLength, skipPromoted) {
 
   // Truncate intelligently: keep post info, truncate comments if needed
   if (content.length > maxLength) {
-    // Try to keep post title + body, truncate comments
     const postEnd = content.indexOf('[COMMENTS]');
     if (postEnd > 0 && postEnd < maxLength) {
       const roomForComments = maxLength - postEnd - 50;
@@ -254,6 +301,9 @@ function extractRedditContext(maxLength, skipPromoted) {
   // --- IMAGES ---
   const images = extractRedditImages(skipPromoted);
 
+  // Build debug info for the popup
+  const debugAuthors = commentData.slice(0, 10).map(c => c.author);
+
   return {
     url: window.location.href,
     title: document.title,
@@ -261,8 +311,32 @@ function extractRedditContext(maxLength, skipPromoted) {
     length: content.length,
     platform: 'reddit',
     commentCount: commentData.length,
-    images: images
+    images: images,
+    debug: {
+      strategiesTried: [
+        newComments.length > 0 ? `data-testid="comment": ${newComments.length} found` : 'data-testid="comment": 0',
+        document.querySelectorAll('shreddit-comment').length > 0 ? `shreddit-comment: ${document.querySelectorAll('shreddit-comment').length} found` : 'shreddit-comment: 0',
+        document.querySelectorAll('.comment').length > 0 ? `class="comment": ${document.querySelectorAll('.comment').length} found` : 'class="comment": 0'
+      ],
+      extractedAuthors: debugAuthors,
+      finalCount: commentData.length
+    }
   };
+}
+
+// Clean author name: remove "OP", "MOD", timestamps, and extra whitespace
+function cleanAuthor(raw) {
+  if (!raw) return '';
+  let name = raw.toString().trim();
+  // Remove "u/" prefix if present from href attributes
+  name = name.replace(/^\/?u\//, '');
+  // Remove "OP" or "MOD" badges that appear next to usernames
+  name = name.replace(/\s*(OP|MOD)\s*$/i, '');
+  // Remove common trailing text like "• 2h ago"
+  name = name.replace(/\s+[•·]\s+.*$/, '');
+  // Clean whitespace
+  name = name.replace(/\s+/g, ' ').trim();
+  return name;
 }
 
 // Extract image URLs from a Reddit post (up to 3, filtered for quality)
