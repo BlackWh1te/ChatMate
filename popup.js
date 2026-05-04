@@ -14,18 +14,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('response-2')
   ];
   const copyBtn = document.getElementById('copy-btn');
-  const cleanBtn = document.getElementById('clean-btn');
   const clearBtn = document.getElementById('clear-btn');
   const pasteBtn = document.getElementById('paste-btn');
-  const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
-  const contextToggle = document.getElementById('context-toggle');
   const statusBadge = document.getElementById('status-badge');
   const modelInfo = document.getElementById('model-info');
   const tokenInfo = document.getElementById('token-info');
   const footerInfo = document.getElementById('footer-info');
   const toast = document.getElementById('toast');
-  const readPageBtn = document.getElementById('read-page-btn');
   const pagePreview = document.getElementById('page-preview');
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const topbarMinimizeBtn = document.getElementById('topbar-minimize-btn');
@@ -272,16 +268,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load settings, templates, check connection
   chrome.storage.local.get([
     'ollamaUrl', 'modelName', 'templates', 'streamingEnabled',
-    'variantCount', 'temperature', 'maxTokens', 'redditFormatting'
+    'temperature', 'maxTokens'
   ], function(result) {
     currentSettings = {
       ollamaUrl: result.ollamaUrl,
       modelName: result.modelName || '',
       streamingEnabled: result.streamingEnabled !== false,
-      variantCount: result.variantCount || 1,
       temperature: result.temperature || 0.7,
-      maxTokens: result.maxTokens || 500,
-      redditFormatting: result.redditFormatting || {}
+      maxTokens: result.maxTokens || 500
     };
 
     if (!result.ollamaUrl) {
@@ -301,8 +295,8 @@ document.addEventListener('DOMContentLoaded', function() {
       templateSelect.appendChild(option);
     });
 
-    // Update variant buttons visibility
-    updateVariantButtons(result.variantCount || 1);
+    // Update variant buttons visibility (always 1 now)
+    updateVariantButtons(1);
   });
 
   // Auto-read page when Reddit-specific tone is selected
@@ -451,18 +445,15 @@ document.addEventListener('DOMContentLoaded', function() {
     return authors;
   }
 
-  // Read Page button - extract page content for study/questions
-  readPageBtn.addEventListener('click', async function() {
-    readPageBtn.disabled = true;
-    readPageBtn.classList.add('btn-reading');
-    readPageBtn.innerHTML = '<span>📖</span> Reading page<span class="thinking-text"></span>';
+  // Read page function - extract page content for context
+  async function readPage() {
     storedPageText = null;
     storedPageImages = null;
     pagePreview.classList.remove('show');
 
     try {
       const settings = await getSettings();
-      const pageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
+      const pageContext = await fetchPageContext(4000, true);
       if (pageContext && pageContext.text) {
         storedPageText = pageContext.text;
         storedPageImages = pageContext.images || null;
@@ -520,12 +511,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     } catch (err) {
       showError('Failed to read page: ' + err.message);
-    } finally {
-      readPageBtn.disabled = false;
-      readPageBtn.classList.remove('btn-reading');
-      readPageBtn.innerHTML = '<span>📖</span> Read Page';
     }
-  });
+  }
 
   // Generate response
   generateBtn.addEventListener('click', async function() {
@@ -563,52 +550,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     if (!response || !response.context) return null;
     return response.context;
-  }
-
-  async function fetchReferenceUrls(maxLength) {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['referenceUrls'], function(result) {
-        const urls = result.referenceUrls || [];
-        if (urls.length === 0) { resolve([]); return; }
-        const limit = maxLength || 4000;
-        const fetchPromises = urls.map(async (item) => {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-            const res = await fetch(item.url, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (!res.ok) return null;
-            const html = await res.text();
-            const text = htmlToText(html);
-            return { label: item.label || item.url, text: truncate(text, limit) };
-          } catch (e) {
-            return null;
-          }
-        });
-        Promise.all(fetchPromises).then(results => resolve(results.filter(Boolean)));
-      });
-    });
-  }
-
-  function htmlToText(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    // Remove script/style/nav/footer tags
-    const removeTags = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript'];
-    removeTags.forEach(tag => {
-      tmp.querySelectorAll(tag).forEach(el => el.remove());
-    });
-    let text = tmp.innerText || tmp.textContent || '';
-    return text
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/\t+/g, ' ')
-      .replace(/ {2,}/g, ' ')
-      .trim();
-  }
-
-  function truncate(text, maxLen) {
-    if (!text || text.length <= maxLen) return text;
-    return text.substring(0, maxLen) + '... [truncated]';
   }
 
   // Detect if user input references a specific Reddit username (u/Name or Name)
@@ -763,11 +704,8 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error('Go to Settings and set up your AI server');
       }
 
-      // Fetch page context if enabled
-      currentPageContext = null;
-      if (contextToggle && contextToggle.checked) {
-        currentPageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
-      }
+      // Fetch page context (always on now)
+      currentPageContext = await fetchPageContext(4000, true);
 
       // Collect images: from freshly fetched context, or from stored read-page data
       const rawImages = (currentPageContext && currentPageContext.images)
@@ -780,9 +718,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (visionActive && rawImages.length > 0) {
         resolvedImages = await resolveImages(rawImages);
       }
-
-      // Fetch reference URLs content
-      const refContents = await fetchReferenceUrls(settings.contextLimit);
 
       // Get template prompt — use a strong default if no template selected
       let systemPrompt = BUILTIN_TEMPLATES[0].prompt; // Default to "Casual"
@@ -812,55 +747,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      const variantCount = settings.variantCount || 1;
-      const promises = [];
-
       // Check if targeting a specific Reddit commenter - use lower temperature for more focused responses
       const targetAuthor = findTargetUsername(text, storedPageText || (currentPageContext?.text || ''));
       const baseTemp = settings.temperature || 0.7;
       // Lower temperature when targeting specific commenter to reduce hallucination and improve instruction following
       const adjustedBaseTemp = targetAuthor ? Math.min(baseTemp, 0.5) : baseTemp;
 
-      for (let i = 0; i < variantCount; i++) {
-        // Vary temperature slightly for diversity when generating multiple variants
-        const temperature = variantCount > 1 ? adjustedBaseTemp + (i * 0.1) : adjustedBaseTemp;
-        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount, currentPageContext, refContents, resolvedImages));
-      }
+      const result = await generateSingleResponse(text, settings, systemPrompt, Math.min(adjustedBaseTemp, 1.5), 0, 1, currentPageContext, [], resolvedImages);
 
-      const results = await Promise.allSettled(promises);
-
-      // Show results
-      let hasAnySuccess = false;
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled' && result.value) {
-          responseCards[i].textContent = cleanResponse(result.value);
-          hasAnySuccess = true;
-        } else if (result.status === 'rejected') {
-          responseCards[i].textContent = 'Oops: ' + result.reason.message;
-        }
-      });
-
-      if (hasAnySuccess) {
+      // Show result
+      if (result) {
+        responseCards[0].textContent = cleanResponse(result);
         showResponses(true);
         setActiveVariant(0);
         updateModelInfo(settings, currentPageContext);
 
-        // Persist responses across popup closes
-        const responsesToSave = responseCards.map((card, i) => ({
-          text: card.textContent,
-          hasError: results[i]?.status === 'rejected'
-        }));
+        // Persist response across popup closes
+        const responsesToSave = [{
+          text: responseCards[0].textContent,
+          hasError: false
+        }];
         chrome.storage.local.set({
           lastResponses: responsesToSave,
           lastActiveVariant: 0,
           lastInput: text
         });
 
-        // Save to history (save first successful response)
-        const firstSuccess = results.find(r => r.status === 'fulfilled' && r.value);
-        if (firstSuccess) {
-          saveToHistory(text, cleanResponse(firstSuccess.value), settings.modelName);
-        }
+        // Save to history
+        saveToHistory(text, cleanResponse(result), settings.modelName);
+      } else {
+        responseCards[0].textContent = 'Failed to generate response';
+        showResponses(true);
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -1180,20 +1097,15 @@ document.addEventListener('DOMContentLoaded', function() {
   function getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
-        'ollamaUrl', 'modelName', 'streamingEnabled', 'variantCount',
-        'temperature', 'maxTokens', 'contextLimit', 'skipPromotedReddit',
-        'redditFormatting'
+        'ollamaUrl', 'modelName', 'streamingEnabled',
+        'temperature', 'maxTokens'
       ], async function(result) {
         const base = {
           ollamaUrl: result.ollamaUrl,
           modelName: result.modelName || '',
           streamingEnabled: result.streamingEnabled !== false,
-          variantCount: result.variantCount || 1,
           temperature: result.temperature || 0.7,
-          maxTokens: result.maxTokens || 500,
-          contextLimit: result.contextLimit || 4000,
-          skipPromotedReddit: result.skipPromotedReddit !== false,
-          redditFormatting: result.redditFormatting || {}
+          maxTokens: result.maxTokens || 500
         };
         // Auto-resolve model if missing / stale
         if (base.ollamaUrl) {

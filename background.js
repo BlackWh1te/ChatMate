@@ -5,57 +5,10 @@ chrome.runtime.onInstalled.addListener(function() {
   // Set default settings
   chrome.storage.local.set({
     ollamaUrl: 'http://localhost:11434',
-    modelName: 'llama2',
+    modelName: 'llama3',
     history: [],
-    templates: [
-      {
-        id: 1,
-        name: 'Professional',
-        prompt: 'Write a professional, polite, and business-appropriate response'
-      },
-      {
-        id: 2,
-        name: 'Casual',
-        prompt: 'Write a friendly, casual, and conversational response'
-      },
-      {
-        id: 3,
-        name: 'Formal',
-        prompt: 'Write a formal, respectful, and dignified response'
-      },
-      {
-        id: 4,
-        name: 'Concise',
-        prompt: 'Write a brief, to-the-point, and concise response'
-      },
-      {
-        id: 5,
-        name: 'Empathetic',
-        prompt: 'Write a warm, understanding, and empathetic response'
-      },
-      {
-        id: 6,
-        name: 'Slack',
-        prompt: 'Write a short, casual, work-appropriate Slack message. Use emojis sparingly, be direct but friendly, and keep it brief enough to read quickly in a busy channel'
-      },
-      {
-        id: 7,
-        name: 'Reddit',
-        prompt: 'Write a helpful, conversational Reddit comment. Be authentic, avoid corporate speak, add value to the discussion, and match the tone of the subreddit community'
-      }
-    ],
-    referenceUrls: [
-      {
-        id: 1,
-        label: 'Slack communication tips',
-        url: 'https://slack.com/blog/collaboration/etiquette-tips-in-slack'
-      },
-      {
-        id: 2,
-        label: 'Reddit etiquette',
-        url: 'https://www.reddit.com/wiki/reddiquette/'
-      }
-    ]
+    templates: [],
+    feedbackHistory: []
   });
 
   // Create context menu

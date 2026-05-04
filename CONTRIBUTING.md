@@ -6,7 +6,7 @@ Contributions are welcome! This is a simple Chrome extension, so modifications a
 
 1. Clone or download this repository
 2. Install Ollama: https://ollama.ai
-3. Pull a model: `ollama pull llama2`
+3. Pull a model: `ollama pull llama3`
 4. Start Ollama: `ollama serve`
 5. Open Chrome and go to `chrome://extensions/`
 6. Enable "Developer mode"
@@ -21,13 +21,19 @@ Contributions are welcome! This is a simple Chrome extension, so modifications a
 ├── manifest.json          # Chrome extension configuration
 ├── popup.html             # Main popup UI
 ├── popup.js               # Popup logic and Ollama API calls
+├── sidebar.html           # Sidebar container UI
 ├── content.js             # Text selection handler
 ├── background.js          # Background service worker
 ├── settings.html          # Settings page
 ├── settings.js            # Settings logic and template management
 ├── icon.svg               # Extension icon (SVG format)
+├── icon16.png             # 16x16 icon
+├── icon32.png             # 32x32 icon
+├── icon48.png             # 48x48 icon
+├── icon128.png            # 128x128 icon
 ├── README.md              # Documentation
 ├── INSTALLATION.md        # Installation instructions
+├── CONTRIBUTING.md        # Contribution guidelines
 ├── LICENSE                # MIT License
 └── .gitignore             # Git ignore rules
 ```

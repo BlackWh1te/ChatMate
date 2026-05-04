@@ -13,6 +13,7 @@ const requiredFiles = [
   'manifest.json',
   'popup.html',
   'popup.js',
+  'sidebar.html',
   'content.js',
   'background.js',
   'settings.html',
@@ -25,7 +26,11 @@ const optionalFiles = [
   'LICENSE',
   'CONTRIBUTING.md',
   '.gitignore',
-  'icon.svg'
+  'icon.svg',
+  'icon16.png',
+  'icon32.png',
+  'icon48.png',
+  'icon128.png'
 ];
 
 console.log('🔍 Validating Chrome Extension...\n');

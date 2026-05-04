@@ -5,10 +5,11 @@ Get AI help writing replies on any website. Works with your own computer's AI (v
 ## What it does
 
 - **Always-visible sidebar** — ChatMate sits on the right edge of every page. No more clicking a tiny toolbar icon.
-- Highlight any text → click **Grab** → get a natural, human-sounding reply
-- Works on Facebook, LinkedIn, WhatsApp, Slack, Discord, and everywhere else
-- Reads the current page to give better, more accurate replies
+- Highlight any text → click **📋** → get a natural, human-sounding reply
+- Works on Facebook, LinkedIn, WhatsApp, Slack, Discord, Reddit, and everywhere else
+- Automatically reads the current page to give better, more accurate replies
 - One click to copy or paste the reply into your chat
+- Modern, clean interface with dark mode support
 
 ## Setup (3 steps)
 
@@ -27,17 +28,22 @@ Get AI help writing replies on any website. Works with your own computer's AI (v
 ## First Use
 
 1. The ChatMate sidebar appears automatically on the right side of every page
-2. Click the **⚙️ Settings** link in the footer → enter `http://localhost:11434` → click **Find Models** → pick a model → **Save**
-3. Highlight text on any page, click **📋 Grab**, then **✨ Write a Reply**
+2. Click the **⚙️ Settings** link in the footer → enter `http://localhost:11434` → click **🔍 Find Models** → pick a model → **Save**
+3. Highlight text on any page, click **📋**, then **✨ Generate Reply**
 
 That's it. The AI will write a reply for you.
 
 ## Tips
 
-- **Pick a tone** — Choose from built-in styles (Casual, Short & Sweet, Warm, Witty, Polished) to match your voice
-- **Turn on "Use this page for context"** when replying to forum posts or support tickets — the AI will know what the conversation is about
-- **Add Reference URLs** in Settings (like your company FAQ) — the AI will use them as background knowledge
+- **Pick a tone** — Choose from 15+ built-in styles (Casual, Professional, Helpful, Tech, ELI5, and more) to match your voice
+- **Reddit-specific tones** — Use tones marked with 🐱 for Reddit replies with proper formatting
+- **Create custom tones** — Save your own instructions in Settings for consistent replies
 - **Not working?** Make sure Ollama is running (`ollama serve` in your terminal)
+
+## Keyboard Shortcuts
+
+- `Ctrl+Shift+O` (Mac: `Cmd+Shift+O`) — Open ChatMate
+- `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`) — Generate response for selected text
 
 ## License
 
