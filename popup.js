@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let abortController = null;
   let currentPageContext = null;
   let storedPageText = null;
+  let storedPageImages = null;
 
   // Built-in high-quality templates that ship with the extension
   const BUILTIN_TEMPLATES = [
@@ -50,6 +51,70 @@ document.addEventListener('DOMContentLoaded', function() {
     { id: '__witty__', name: 'Witty', prompt: 'You have a dry, clever sense of humor. Reply with a touch of wit or a light joke when appropriate. Keep it tasteful — never mean-spirited. Your replies should make the reader smile. Still be helpful and answer the question.' },
     { id: '__professional__', name: 'Polished', prompt: 'You are a clear, articulate professional. Write concise, well-structured replies. Use proper grammar but avoid stiff corporate language. No "Dear Sir/Madam" or "Best regards." Just a straightforward, competent response that sounds like a smart colleague.' }
   ];
+
+  // Vision-capable Ollama model prefixes (checked case-insensitively)
+  const VISION_MODELS = [
+    'llava', 'bakllava', 'moondream',
+    'llama3.2-vision', 'llama3.3-vision',
+    'gemma3', 'qwen2-vl', 'qwen2.5-vl',
+    'minicpm-v'
+  ];
+
+  function isVisionModel(name) {
+    if (!name) return false;
+    const lower = name.toLowerCase();
+    return VISION_MODELS.some(v => lower.includes(v));
+  }
+
+  // Fetch an image from URL and convert to base64 (JPEG)
+  async function fetchImageAsBase64(url, maxDim = 1024, quality = 0.85) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) return null;
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+          let w = img.naturalWidth;
+          let h = img.naturalHeight;
+          if (w > maxDim || h > maxDim) {
+            const scale = Math.min(maxDim / w, maxDim / h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl.replace(/^data:image\/jpeg;base64,/, ''));
+        };
+        img.onerror = () => resolve(null);
+        img.src = URL.createObjectURL(blob);
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Resolve image data: use base64 from content script if available,
+  // otherwise fetch from URL and convert.
+  async function resolveImages(imageList) {
+    if (!imageList || imageList.length === 0) return [];
+    const results = [];
+    for (const img of imageList.slice(0, 3)) {
+      if (img.base64) {
+        results.push(img.base64);
+      } else if (img.url) {
+        const fetched = await fetchImageAsBase64(img.url);
+        if (fetched) results.push(fetched);
+      }
+    }
+    return results;
+  }
 
   // Sidebar mode detection (running inside iframe injected into web pages)
   const isSidebarMode = new URLSearchParams(window.location.search).get('mode') === 'sidebar';
@@ -159,7 +224,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const modelCount = data.models ? data.models.length : 0;
-      setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}`);
+      const vision = isVisionModel(settings.modelName) ? ' 👁️' : '';
+      setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}${vision}`);
     } catch (err) {
       setStatus('offline', 'Offline');
     }
@@ -298,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
     readPageBtn.classList.add('btn-reading');
     readPageBtn.innerHTML = '<span>📖</span> Reading page<span class="thinking-text"></span>';
     storedPageText = null;
+    storedPageImages = null;
     pagePreview.classList.remove('show');
 
     try {
@@ -305,11 +372,16 @@ document.addEventListener('DOMContentLoaded', function() {
       const pageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
       if (pageContext && pageContext.text) {
         storedPageText = pageContext.text;
+        storedPageImages = pageContext.images || null;
         const isReddit = pageContext.platform === 'reddit';
         const preview = pageContext.text.substring(0, 350);
         let header = `<strong>Page read (${pageContext.text.length.toLocaleString()} chars)`;
         if (isReddit && pageContext.commentCount) {
           header += ` — ${pageContext.commentCount} comments found`;
+        }
+        const imageCount = (pageContext.images || []).length;
+        if (imageCount > 0) {
+          header += ` — ${imageCount} image${imageCount > 1 ? 's' : ''} detected`;
         }
         header += `:</strong>`;
         const hint = isReddit
@@ -317,7 +389,10 @@ document.addEventListener('DOMContentLoaded', function() {
           : `<em>Now type your question below (e.g., "What was on page 210?")</em>`;
         pagePreview.innerHTML = `${header}<br><br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
         pagePreview.classList.add('show');
-        showToast(`Read ${pageContext.text.length.toLocaleString()} characters${isReddit ? ` (${pageContext.commentCount} comments)` : ''}`, 'success');
+        const toastParts = [`Read ${pageContext.text.length.toLocaleString()} characters`];
+        if (isReddit && pageContext.commentCount) toastParts.push(`${pageContext.commentCount} comments`);
+        if (imageCount > 0) toastParts.push(`${imageCount} image${imageCount > 1 ? 's' : ''}`);
+        showToast(toastParts.join(' • '), 'success');
         // Focus the input so user can type their question
         inputText.focus();
       } else {
@@ -412,7 +487,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Build Ollama /api/chat messages array
   // Separates system instructions from user content for much better instruction-tuned model responses
-  function buildMessages(systemPrompt, userInput, pageContext, refContents, explicitPageText) {
+  // images: array of base64 JPEG strings (for vision models)
+  function buildMessages(systemPrompt, userInput, pageContext, refContents, explicitPageText, images) {
     const systemContent = systemPrompt || 'You are a helpful assistant.';
 
     let userContent = '';
@@ -432,11 +508,18 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (pageContext && pageContext.text) {
       userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;
     }
+    if (images && images.length > 0) {
+      userContent += `I have also included ${images.length} image${images.length > 1 ? 's' : ''} from the page. Please analyze the image${images.length > 1 ? 's' : ''} together with the text above and answer my question considering both.\n\n`;
+    }
     userContent += `My question:\n${userInput}\n\nPlease answer based on the text above.`;
 
+    const msg = { role: 'user', content: userContent };
+    if (images && images.length > 0) {
+      msg.images = images;
+    }
     return [
       { role: 'system', content: systemContent },
-      { role: 'user', content: userContent }
+      msg
     ];
   }
 
@@ -463,6 +546,18 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPageContext = await fetchPageContext(settings.contextLimit, settings.skipPromotedReddit);
       }
 
+      // Collect images: from freshly fetched context, or from stored read-page data
+      const rawImages = (currentPageContext && currentPageContext.images)
+        ? currentPageContext.images
+        : (storedPageImages || []);
+
+      // Resolve images for vision model (fetch base64 if content script didn't provide it)
+      let resolvedImages = [];
+      const visionActive = isVisionModel(settings.modelName);
+      if (visionActive && rawImages.length > 0) {
+        resolvedImages = await resolveImages(rawImages);
+      }
+
       // Fetch reference URLs content
       const refContents = await fetchReferenceUrls(settings.contextLimit);
 
@@ -481,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
       for (let i = 0; i < variantCount; i++) {
         // Vary temperature slightly for diversity when generating multiple variants
         const temperature = variantCount > 1 ? baseTemp + (i * 0.15) : baseTemp;
-        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount, currentPageContext, refContents));
+        promises.push(generateSingleResponse(text, settings, systemPrompt, Math.min(temperature, 1.5), i, variantCount, currentPageContext, refContents, resolvedImages));
       }
 
       const results = await Promise.allSettled(promises);
@@ -537,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loading.classList.remove('show');
   }
 
-  async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total, pageContext, refContents) {
+  async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total, pageContext, refContents, images) {
     if (total > 1) {
       loadingText.innerHTML = `Writing reply ${index + 1} of ${total}<span class="thinking-text"></span>`;
     } else {
@@ -547,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const url = `${settings.ollamaUrl}/api/chat`;
 
     const maxTokens = settings.maxTokens || 500;
-    const messages = buildMessages(systemPrompt, prompt, pageContext, refContents, storedPageText);
+    const messages = buildMessages(systemPrompt, prompt, pageContext, refContents, storedPageText, images);
 
     if (settings.streamingEnabled && total === 1) {
       // Streaming for single response
@@ -748,11 +843,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updateModelInfo(settings, pageContext) {
-    modelInfo.textContent = `Model: ${settings.modelName}`;
+    const visionBadge = isVisionModel(settings.modelName) ? ' 👁️' : '';
+    modelInfo.textContent = `Model: ${settings.modelName}${visionBadge}`;
     tokenInfo.textContent = '';
-    let footerText = `${settings.modelName} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
+    let footerText = `${settings.modelName}${visionBadge} • ${settings.ollamaUrl.replace(/^https?:\/\//, '').split('/')[0]}`;
     if (pageContext && pageContext.title) {
       footerText += ` • Context: ${pageContext.title}`;
+    }
+    const imageCount = (pageContext && pageContext.images) ? pageContext.images.length : 0;
+    if (imageCount > 0) {
+      footerText += ` • ${imageCount} image${imageCount > 1 ? 's' : ''}`;
     }
     footerInfo.textContent = footerText;
   }

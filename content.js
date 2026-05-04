@@ -80,12 +80,68 @@ function extractPageContext(maxLength, skipPromoted) {
     content = content.substring(0, maxLength) + '... [truncated]';
   }
 
+  // --- IMAGES (generic pages) ---
+  const images = extractGenericImages();
+
   return {
     url: window.location.href,
     title: document.title,
     text: content,
-    length: content.length
+    length: content.length,
+    images: images
   };
+}
+
+// Extract images from non-Reddit pages (up to 3, filtered for quality)
+function extractGenericImages() {
+  const candidates = [];
+  const main = document.querySelector('article, main, [role="main"], .content, .post-content, .entry-content');
+  const scope = main || document.body;
+  const imgs = scope.querySelectorAll('img');
+  imgs.forEach(img => {
+    addImageCandidate(candidates, img);
+  });
+
+  // Also check CSS background-images on large divs inside main content
+  if (main) {
+    const divs = main.querySelectorAll('div');
+    divs.forEach(div => {
+      const style = window.getComputedStyle(div);
+      const bg = style.backgroundImage;
+      if (bg && bg.startsWith('url(') && bg !== 'none') {
+        const url = bg.slice(4, -1).replace(/["']/g, '');
+        const rect = div.getBoundingClientRect();
+        if (rect.width >= 200 && rect.height >= 200) {
+          candidates.push({
+            el: null,
+            url: url,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            area: rect.width * rect.height,
+            alt: ''
+          });
+        }
+      }
+    });
+  }
+
+  // Deduplicate by URL and sort by size
+  const seen = new Set();
+  const unique = candidates.filter(c => {
+    if (!c.url || seen.has(c.url)) return false;
+    seen.add(c.url);
+    return true;
+  });
+  unique.sort((a, b) => (b.area || 0) - (a.area || 0));
+
+  // For generic pages we only have URLs (no base64 from canvas since images may be cross-origin)
+  return unique.slice(0, 3).map(c => ({
+    url: c.url,
+    base64: c.el ? imageToBase64(c.el) : null,
+    alt: c.alt || '',
+    width: c.width,
+    height: c.height
+  }));
 }
 
 function isReddit() {
@@ -195,14 +251,144 @@ function extractRedditContext(maxLength, skipPromoted) {
     }
   }
 
+  // --- IMAGES ---
+  const images = extractRedditImages(skipPromoted);
+
   return {
     url: window.location.href,
     title: document.title,
     text: content,
     length: content.length,
     platform: 'reddit',
-    commentCount: commentData.length
+    commentCount: commentData.length,
+    images: images
   };
+}
+
+// Extract image URLs from a Reddit post (up to 3, filtered for quality)
+function extractRedditImages(skipPromoted) {
+  const candidates = [];
+
+  // New Reddit: main post images
+  const postContent = document.querySelector('[data-testid="post-content"]');
+  if (postContent) {
+    const imgs = postContent.querySelectorAll('img');
+    imgs.forEach(img => {
+      if (skipPromoted && isPromotedElement(img)) return;
+      addImageCandidate(candidates, img);
+    });
+  }
+
+  // Old Reddit: thumbnail / expando images
+  const oldPost = document.querySelector('.thing');
+  if (oldPost) {
+    const thumb = oldPost.querySelector('.thumbnail img');
+    if (thumb) addImageCandidate(candidates, thumb);
+    const expandoImgs = oldPost.querySelectorAll('.expando img');
+    expandoImgs.forEach(img => addImageCandidate(candidates, img));
+  }
+
+  // New Reddit: standalone post image (when post is just an image)
+  const mediaImgs = document.querySelectorAll('img[src*="i.redd.it"], img[src*="preview.redd.it"]');
+  mediaImgs.forEach(img => {
+    if (skipPromoted && isPromotedElement(img)) return;
+    addImageCandidate(candidates, img);
+  });
+
+  // Inline images in post body / comments (markdown-rendered)
+  const inlineImgs = document.querySelectorAll('.md img, [data-testid="comment-content"] img');
+  inlineImgs.forEach(img => {
+    if (skipPromoted && isPromotedElement(img)) return;
+    addImageCandidate(candidates, img);
+  });
+
+  // Deduplicate by URL and sort by size (largest first)
+  const seen = new Set();
+  const unique = candidates.filter(c => {
+    if (!c.url || seen.has(c.url)) return false;
+    seen.add(c.url);
+    return true;
+  });
+  unique.sort((a, b) => (b.area || 0) - (a.area || 0));
+
+  // Take top 3 and try to convert to base64
+  return unique.slice(0, 3).map(c => {
+    const base64 = imageToBase64(c.el);
+    return {
+      url: c.url,
+      base64: base64,
+      alt: c.alt || '',
+      width: c.width,
+      height: c.height
+    };
+  });
+}
+
+function addImageCandidate(list, img) {
+  const url = getImageUrl(img);
+  if (!url) return;
+  const w = img.naturalWidth || img.width || 0;
+  const h = img.naturalHeight || img.height || 0;
+  // Skip tiny icons, avatars, tracking pixels
+  if (w < 100 || h < 100) return;
+  // Skip likely ads / sponsored overlays
+  if (img.closest('.ads, .advertisement, [data-testid="ad-post"]')) return;
+  list.push({
+    el: img,
+    url: url,
+    width: w,
+    height: h,
+    area: w * h,
+    alt: img.alt || img.getAttribute('aria-label') || ''
+  });
+}
+
+function getImageUrl(img) {
+  const src = img.currentSrc || img.src;
+  if (!src) return null;
+  // Skip data URIs (already handled) and SVG icons
+  if (src.startsWith('data:') || src.endsWith('.svg')) return null;
+  // Convert preview.redd.it thumbnails to higher-res if possible
+  if (src.includes('preview.redd.it')) {
+    // Try to get full resolution by removing size suffixes like ?width=...
+    try {
+      const url = new URL(src);
+      url.searchParams.delete('width');
+      url.searchParams.delete('height');
+      return url.toString();
+    } catch (e) {
+      return src;
+    }
+  }
+  return src;
+}
+
+// Try to convert an <img> element to base64 JPEG via canvas.
+// Returns null if the image isn't loaded or CORS taints the canvas.
+function imageToBase64(img, maxDim = 1024, quality = 0.85) {
+  try {
+    if (!img.complete) return null;
+    let w = img.naturalWidth || 0;
+    let h = img.naturalHeight || 0;
+    if (!w || !h) return null;
+    // Resize if too large
+    if (w > maxDim || h > maxDim) {
+      const scale = Math.min(maxDim / w, maxDim / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    // Strip the data:image/jpeg;base64, prefix
+    return dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+  } catch (e) {
+    // CORS taint or other error
+    return null;
+  }
 }
 
 // Heuristic: check if an element or its ancestors are clearly a promoted/sponsored post
@@ -679,7 +865,7 @@ document.addEventListener('selectionchange', function() {
     ], function(result) {
       fallbackSettings = {
         ollamaUrl: result.ollamaUrl,
-        modelName: result.modelName || 'llama3',
+        modelName: result.modelName || '',
         temperature: result.temperature || 0.7,
         maxTokens: result.maxTokens || 500,
         contextLimit: result.contextLimit || 4000,

@@ -1,4 +1,18 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // Vision-capable model prefixes (shared with popup.js)
+  const VISION_MODELS = [
+    'llava', 'bakllava', 'moondream',
+    'llama3.2-vision', 'llama3.3-vision',
+    'gemma3', 'qwen2-vl', 'qwen2.5-vl',
+    'minicpm-v'
+  ];
+
+  function isVisionModel(name) {
+    if (!name) return false;
+    const lower = name.toLowerCase();
+    return VISION_MODELS.some(v => lower.includes(v));
+  }
+
   // DOM Elements
   const ollamaUrlInput = document.getElementById('ollama-url');
   const modelSelect = document.getElementById('model-select');
@@ -150,10 +164,20 @@ document.addEventListener('DOMContentLoaded', function() {
       // Models detected — use dropdown, hide manual input
       modelSelect.style.display = 'block';
       modelManual.style.display = 'none';
-      availableModels.forEach(name => {
+
+      // Sort: vision models first, then alphabetical
+      const sorted = [...availableModels].sort((a, b) => {
+        const av = isVisionModel(a);
+        const bv = isVisionModel(b);
+        if (av && !bv) return -1;
+        if (!av && bv) return 1;
+        return a.localeCompare(b);
+      });
+
+      sorted.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
-        option.textContent = name;
+        option.textContent = isVisionModel(name) ? `${name}  👁️` : name;
         if (name === selectedModel) option.selected = true;
         modelSelect.appendChild(option);
       });
