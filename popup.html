@@ -390,6 +390,39 @@
       background: var(--secondary-text);
     }
 
+    .feedback-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 4px 8px;
+      background: var(--primary-soft);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--secondary-text);
+    }
+    .feedback-bar.show { display: flex; }
+    .feedback-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 2px 8px;
+      font-size: 14px;
+      line-height: 1;
+      transition: var(--transition);
+    }
+    .feedback-btn:hover { background: var(--card-bg); border-color: var(--primary); }
+    .feedback-btn.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .feedback-thanks {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--success);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .feedback-thanks.show { opacity: 1; }
+
     .response-meta {
       display: flex;
       justify-content: space-between;
@@ -472,6 +505,7 @@
     }
     .toast.show { transform: translateX(0); }
     .toast-success { background: var(--success); color: white; }
+    .toast-warning { background: var(--warning); color: #1a1a1a; }
     .toast-info { background: var(--primary); color: white; }
 
     /* Empty state */
@@ -796,6 +830,13 @@
       <div class="response-card active" id="response-0"></div>
       <div class="response-card" id="response-1"></div>
       <div class="response-card" id="response-2"></div>
+
+      <div class="feedback-bar" id="feedback-bar">
+        <span>Was this reply helpful?</span>
+        <button class="feedback-btn" id="feedback-up" title="Good reply — use this style more">👍</button>
+        <button class="feedback-btn" id="feedback-down" title="Bad reply — off-topic or irrelevant">👎</button>
+        <span class="feedback-thanks" id="feedback-thanks">Thanks for feedback!</span>
+      </div>
 
       <div class="response-meta">
         <span id="model-info" class="model-info"></span>

@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const importHistoryBtn = document.getElementById('import-history-btn');
   const importFile = document.getElementById('import-file');
 
+  // Feedback
+  const feedbackList = document.getElementById('feedback-list');
+  const feedbackStats = document.getElementById('feedback-stats');
+  const clearFeedbackBtn = document.getElementById('clear-feedback-btn');
+
   let allHistory = [];
 
   // Theme
@@ -104,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Display history
     allHistory = result.history || [];
     displayHistory(allHistory);
+
+    // Display feedback
+    displayFeedback(result.feedbackHistory || []);
   });
 
   // Find models from Ollama
@@ -449,6 +457,47 @@ document.addEventListener('DOMContentLoaded', function() {
       showSuccess('History cleared!');
     });
   });
+
+  // Feedback
+  function displayFeedback(feedback) {
+    if (!feedback || feedback.length === 0) {
+      feedbackList.innerHTML = '<div class="empty-state">No feedback yet. Rate replies with 👍/👎 in the popup to build this list.</div>';
+      if (feedbackStats) feedbackStats.textContent = '';
+      return;
+    }
+    const upCount = feedback.filter(f => f.rating === 'up').length;
+    const downCount = feedback.filter(f => f.rating === 'down').length;
+    const pct = Math.round((upCount / feedback.length) * 100);
+    if (feedbackStats) {
+      feedbackStats.innerHTML = `<strong>${upCount}</strong> 👍  <strong>${downCount}</strong> 👎  — <strong>${pct}%</strong> helpful overall (${feedback.length} total)`;
+    }
+
+    feedbackList.innerHTML = feedback.slice(0, 50).map(item => {
+      const emoji = item.rating === 'up' ? '👍' : '👎';
+      const cls = item.rating === 'up' ? 'feedback-up' : 'feedback-down';
+      const date = new Date(item.timestamp).toLocaleDateString();
+      const page = item.pageUrl ? `<a href="${escapeHtml(item.pageUrl)}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:11px;">🔗 ${escapeHtml(item.pageUrl.replace(/^https?:\/\//, '').substring(0, 40))}</a>` : '';
+      return `<div class="history-item ${cls}" style="border-left: 3px solid ${item.rating === 'up' ? 'var(--success)' : 'var(--danger)'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:600;">${emoji} ${date}</span>
+          <span style="font-size:11px;color:var(--secondary-text);">${escapeHtml(item.model || '')}</span>
+        </div>
+        <div style="font-size:12px;margin-bottom:4px;color:var(--text-color);"><strong>Prompt:</strong> ${escapeHtml(item.input || '').substring(0, 120)}${(item.input || '').length > 120 ? '...' : ''}</div>
+        <div style="font-size:12px;color:var(--secondary-text);white-space:pre-wrap;word-break:break-word;"><strong>Reply:</strong> ${escapeHtml(item.output || '').substring(0, 200)}${(item.output || '').length > 200 ? '...' : ''}</div>
+        ${page}
+      </div>`;
+    }).join('');
+  }
+
+  if (clearFeedbackBtn) {
+    clearFeedbackBtn.addEventListener('click', function() {
+      if (!confirm('Clear all feedback ratings? This cannot be undone.')) return;
+      chrome.storage.local.set({ feedbackHistory: [] }, function() {
+        displayFeedback([]);
+        showSuccess('Feedback cleared!');
+      });
+    });
+  }
 
   // Helpers
   function showSuccess(message) {

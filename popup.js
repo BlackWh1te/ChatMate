@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const topbarMinimizeBtn = document.getElementById('topbar-minimize-btn');
   const grabTextBtn = document.getElementById('grab-text-btn');
   const responsesEmpty = document.getElementById('responses-empty');
+  const feedbackBar = document.getElementById('feedback-bar');
+  const feedbackUp = document.getElementById('feedback-up');
+  const feedbackDown = document.getElementById('feedback-down');
+  const feedbackThanks = document.getElementById('feedback-thanks');
 
   // State
   let currentSettings = null;
@@ -43,13 +47,16 @@ document.addEventListener('DOMContentLoaded', function() {
   let storedPageText = null;
   let storedPageImages = null;
 
+  // Anti-hallucination guard: every prompt ends with this instruction
+  const ON_TOPIC_GUARD = 'CRITICAL: Only respond to the actual topic and questions in the provided context. Do NOT invent unrelated advice, do NOT hallucinate details not in the text, and do NOT reply about Slack, Discord, email etiquette, or other platforms unless the context explicitly mentions them. If the context is unclear, ask for clarification instead of guessing.';
+
   // Built-in high-quality templates that ship with the extension
   const BUILTIN_TEMPLATES = [
-    { id: '__casual__', name: 'Casual', prompt: 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions (it\'s, don\'t, gonna), and occasional humor. Avoid corporate speak, formal greetings, and sign-offs. Keep it under 3 sentences when possible. Match the energy of the message you are replying to.' },
-    { id: '__short__', name: 'Short & Sweet', prompt: 'Reply as briefly as possible while still being helpful. One or two sentences max. No fluff, no preamble, no "I hope this helps" endings. Get straight to the point. Sound like a busy person who values clarity.' },
-    { id: '__friendly__', name: 'Warm & Friendly', prompt: 'You are a warm, supportive friend. Use an encouraging, positive tone. Add a little personality — maybe an emoji or an exclamation point. Keep it genuine, not overly enthusiastic. Sound like someone who genuinely cares about the person they are talking to.' },
-    { id: '__witty__', name: 'Witty', prompt: 'You have a dry, clever sense of humor. Reply with a touch of wit or a light joke when appropriate. Keep it tasteful — never mean-spirited. Your replies should make the reader smile. Still be helpful and answer the question.' },
-    { id: '__professional__', name: 'Polished', prompt: 'You are a clear, articulate professional. Write concise, well-structured replies. Use proper grammar but avoid stiff corporate language. No "Dear Sir/Madam" or "Best regards." Just a straightforward, competent response that sounds like a smart colleague.' }
+    { id: '__casual__', name: 'Casual', prompt: 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions (it\'s, don\'t, gonna), and occasional humor. Avoid corporate speak, formal greetings, and sign-offs. Keep it under 3 sentences when possible. Match the energy of the message you are replying to. ' + ON_TOPIC_GUARD },
+    { id: '__short__', name: 'Short & Sweet', prompt: 'Reply as briefly as possible while still being helpful. One or two sentences max. No fluff, no preamble, no "I hope this helps" endings. Get straight to the point. Sound like a busy person who values clarity. ' + ON_TOPIC_GUARD },
+    { id: '__friendly__', name: 'Warm & Friendly', prompt: 'You are a warm, supportive friend. Use an encouraging, positive tone. Add a little personality — maybe an emoji or an exclamation point. Keep it genuine, not overly enthusiastic. Sound like someone who genuinely cares about the person they are talking to. ' + ON_TOPIC_GUARD },
+    { id: '__witty__', name: 'Witty', prompt: 'You have a dry, clever sense of humor. Reply with a touch of wit or a light joke when appropriate. Keep it tasteful — never mean-spirited. Your replies should make the reader smile. Still be helpful and answer the question. ' + ON_TOPIC_GUARD },
+    { id: '__professional__', name: 'Polished', prompt: 'You are a clear, articulate professional. Write concise, well-structured replies. Use proper grammar but avoid stiff corporate language. No "Dear Sir/Madam" or "Best regards." Just a straightforward, competent response that sounds like a smart colleague. ' + ON_TOPIC_GUARD }
   ];
 
   // Vision-capable Ollama model prefixes (checked case-insensitively)
@@ -305,10 +312,42 @@ document.addEventListener('DOMContentLoaded', function() {
     if (show) {
       responsesContainer.classList.add('show');
       if (responsesEmpty) responsesEmpty.style.display = 'none';
+      if (feedbackBar) feedbackBar.classList.add('show');
+      resetFeedbackUI();
     } else {
       responsesContainer.classList.remove('show');
       if (responsesEmpty) responsesEmpty.style.display = 'block';
+      if (feedbackBar) feedbackBar.classList.remove('show');
     }
+  }
+
+  function resetFeedbackUI() {
+    if (!feedbackUp || !feedbackDown) return;
+    feedbackUp.classList.remove('selected');
+    feedbackDown.classList.remove('selected');
+    if (feedbackThanks) feedbackThanks.classList.remove('show');
+  }
+
+  function saveFeedback(variantIndex, rating) {
+    const text = responseCards[variantIndex]?.textContent || '';
+    const input = currentInput || '';
+    const pageUrl = currentPageContext?.url || '';
+    const model = currentSettings?.modelName || '';
+    const entry = {
+      rating: rating, // 'up' or 'down'
+      input: input.substring(0, 500),
+      output: text.substring(0, 1000),
+      pageUrl: pageUrl,
+      model: model,
+      template: currentTemplateId || '__casual__',
+      timestamp: Date.now()
+    };
+    chrome.storage.local.get(['feedbackHistory'], function(result) {
+      const history = result.feedbackHistory || [];
+      history.unshift(entry);
+      if (history.length > 200) history.pop();
+      chrome.storage.local.set({ feedbackHistory: history });
+    });
   }
 
   // Check for pending text from context menu or keyboard shortcut (popup only)
@@ -832,6 +871,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     await generateResponses(currentInput, currentTemplateId);
   });
+
+  // Feedback buttons
+  if (feedbackUp) {
+    feedbackUp.addEventListener('click', function() {
+      feedbackUp.classList.add('selected');
+      feedbackDown.classList.remove('selected');
+      if (feedbackThanks) feedbackThanks.classList.add('show');
+      saveFeedback(activeVariant, 'up');
+      showToast('Marked as helpful — thanks!', 'success');
+    });
+  }
+  if (feedbackDown) {
+    feedbackDown.addEventListener('click', function() {
+      feedbackDown.classList.add('selected');
+      feedbackUp.classList.remove('selected');
+      if (feedbackThanks) feedbackThanks.classList.add('show');
+      saveFeedback(activeVariant, 'down');
+      showToast('Marked as unhelpful — noted for improvement', 'warning');
+    });
+  }
 
   // Toast notifications
   function showToast(message, type) {
