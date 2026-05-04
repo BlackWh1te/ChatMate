@@ -383,6 +383,51 @@
       margin-bottom: 8px;
       flex-wrap: wrap;
     }
+
+    /* Sidebar mode overrides */
+    html.sidebar-mode body {
+      width: 100% !important;
+    }
+    html.sidebar-mode .header {
+      padding-top: 4px;
+    }
+
+    .grab-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .grab-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .grab-btn:hover {
+      background: rgba(13, 110, 253, 0.1);
+    }
+    .grab-btn:active {
+      transform: scale(0.96);
+    }
+    #sidebar-close-btn {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      color: var(--secondary-text);
+      margin-left: 6px;
+    }
+    #sidebar-close-btn:hover {
+      background: var(--response-bg);
+    }
   </style>
 </head>
 <body>
@@ -392,6 +437,7 @@
       <div class="header-actions">
         <span class="status-badge status-checking" id="status-badge">Checking...</span>
         <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+        <button id="sidebar-close-btn" title="Hide sidebar">✕</button>
       </div>
     </div>
 
@@ -416,7 +462,10 @@
     </div>
 
     <div class="card">
-      <label for="input-text">What do you want to reply to?</label>
+      <div class="grab-row">
+        <label for="input-text">What do you want to reply to?</label>
+        <button class="grab-btn" id="grab-text-btn" title="Grab currently selected text on the page">📋 Grab</button>
+      </div>
       <textarea id="input-text" placeholder="Highlight text on a page, or type here..."></textarea>
       <div style="display: flex; gap: 8px; margin-top: 10px;">
         <button class="btn btn-secondary" id="read-page-btn" style="flex: 1;">

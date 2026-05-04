@@ -274,3 +274,147 @@ document.addEventListener('selectionchange', function() {
     lastSelectedText = selection;
   }
 });
+
+// --- ChatMate Sidebar Injection ---
+(function initSidebar() {
+  // Don't inject in iframes (nested contexts cause issues)
+  if (window.self !== window.top) return;
+  // Don't double-inject
+  if (document.getElementById('chatmate-sidebar-container')) return;
+
+  const SIDEBAR_WIDTH = 440;
+  const SIDEBAR_ZINDEX = 2147483647;
+
+  // Create sidebar container
+  const container = document.createElement('div');
+  container.id = 'chatmate-sidebar-container';
+  container.style.cssText = `
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: ${SIDEBAR_WIDTH}px;
+    height: 100vh;
+    z-index: ${SIDEBAR_ZINDEX};
+    background: transparent;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'chatmate-sidebar-iframe';
+  iframe.src = chrome.runtime.getURL('sidebar.html');
+  iframe.allow = 'clipboard-read; clipboard-write';
+  iframe.style.cssText = `
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+    display: block;
+  `;
+
+  container.appendChild(iframe);
+
+  // Create toggle button (always visible)
+  const toggle = document.createElement('div');
+  toggle.id = 'chatmate-sidebar-toggle';
+  toggle.innerHTML = '💬';
+  toggle.title = 'Toggle ChatMate sidebar';
+  toggle.style.cssText = `
+    position: fixed;
+    top: 100px;
+    right: ${SIDEBAR_WIDTH}px;
+    width: 36px;
+    height: 40px;
+    z-index: ${SIDEBAR_ZINDEX - 1};
+    background: #0d6efd;
+    color: #fff;
+    border-radius: 6px 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    box-shadow: -2px 2px 6px rgba(0,0,0,0.2);
+    transition: right 0.3s ease;
+    user-select: none;
+  `;
+
+  // Append to page
+  document.body.appendChild(container);
+  document.body.appendChild(toggle);
+
+  // Visibility state
+  let visible = true;
+  chrome.storage.local.get(['sidebarVisible'], function(result) {
+    if (result.sidebarVisible === false) {
+      visible = false;
+      container.style.transform = `translateX(100%)`;
+      toggle.style.right = '0';
+    }
+  });
+
+  // Toggle handler
+  toggle.addEventListener('click', function() {
+    visible = !visible;
+    if (visible) {
+      container.style.transform = 'translateX(0)';
+      toggle.style.right = SIDEBAR_WIDTH + 'px';
+    } else {
+      container.style.transform = 'translateX(100%)';
+      toggle.style.right = '0';
+    }
+    chrome.storage.local.set({sidebarVisible: visible});
+  });
+
+  // Listen for messages from sidebar iframe (popup.html running inside)
+  window.addEventListener('message', function(event) {
+    // Only respond to our sidebar iframe
+    if (!iframe.contentWindow) return;
+    if (event.source !== iframe.contentWindow) {
+      // Could be from nested iframe (popup.html inside sidebar.html)
+      // Check if event.source is a descendant of our iframe
+      try {
+        let src = event.source;
+        while (src && src !== iframe.contentWindow) {
+          src = src.parent;
+          if (src === window) return; // reached top, not our iframe
+        }
+        if (!src) return;
+      } catch (e) {
+        // Cross-origin access error means it's not our iframe
+        return;
+      }
+    }
+
+    const msg = event.data;
+    if (!msg || !msg._chatmate) return;
+
+    let result = null;
+    if (msg.action === 'getSelectedText') {
+      result = {text: window.getSelection().toString().trim()};
+    } else if (msg.action === 'getPageContext') {
+      result = {context: extractPageContext(msg.maxLength || 4000)};
+    } else if (msg.action === 'insertText') {
+      result = {success: insertTextIntoActiveElement(msg.text)};
+    }
+
+    // Send response back to the source iframe
+    if (event.source && event.source.postMessage) {
+      event.source.postMessage({
+        _chatmateResponse: true,
+        _id: msg._id,
+        result: result
+      }, '*');
+    }
+  });
+
+  // Also handle direct toggle requests from sidebar wrapper
+  window.addEventListener('message', function(event) {
+    if (event.source !== iframe.contentWindow) return;
+    const msg = event.data;
+    if (msg && msg.action === 'toggleSidebar') {
+      toggle.click();
+    }
+  });
+})();

@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const toast = document.getElementById('toast');
   const readPageBtn = document.getElementById('read-page-btn');
   const pagePreview = document.getElementById('page-preview');
+  const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+  const grabTextBtn = document.getElementById('grab-text-btn');
 
   // State
   let currentSettings = null;
@@ -37,6 +39,40 @@ document.addEventListener('DOMContentLoaded', function() {
   let abortController = null;
   let currentPageContext = null;
   let storedPageText = null;
+
+  // Sidebar mode detection (running inside iframe injected into web pages)
+  const isSidebarMode = new URLSearchParams(window.location.search).get('mode') === 'sidebar';
+
+  // Sidebar: communicate with host page via postMessage instead of chrome.tabs
+  function sendMessageToActiveTab(message) {
+    return new Promise((resolve) => {
+      if (isSidebarMode) {
+        const requestId = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const handler = (event) => {
+          if (event.source !== window.top) return;
+          if (event.data && event.data._chatmateResponse && event.data._id === requestId) {
+            window.removeEventListener('message', handler);
+            resolve(event.data.result);
+          }
+        };
+        window.addEventListener('message', handler);
+        // Auto-remove listener after 10s to prevent leaks
+        setTimeout(() => window.removeEventListener('message', handler), 10000);
+        window.top.postMessage({...message, _chatmate: true, _id: requestId}, '*');
+      } else {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (!tabs || !tabs[0]) { resolve(null); return; }
+          chrome.tabs.sendMessage(tabs[0].id, message, function(response) {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+            } else {
+              resolve(response);
+            }
+          });
+        });
+      }
+    });
+  }
 
   // Theme handling
   function applyTheme(theme) {
@@ -62,6 +98,32 @@ document.addEventListener('DOMContentLoaded', function() {
   if (contextToggle) {
     contextToggle.addEventListener('change', function() {
       chrome.storage.local.set({contextEnabled: contextToggle.checked});
+    });
+  }
+
+  // Sidebar mode UI setup
+  if (isSidebarMode) {
+    document.documentElement.classList.add('sidebar-mode');
+    if (sidebarCloseBtn) sidebarCloseBtn.style.display = 'inline-flex';
+  }
+
+  // Sidebar close button
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener('click', function() {
+      window.parent.postMessage({action: 'toggleSidebar', visible: false}, '*');
+    });
+  }
+
+  // Grab selected text from page
+  if (grabTextBtn) {
+    grabTextBtn.addEventListener('click', async function() {
+      const response = await sendMessageToActiveTab({action: 'getSelectedText'});
+      if (response && response.text) {
+        inputText.value = response.text;
+        showToast('Grabbed selected text', 'success');
+      } else {
+        showToast('No text selected on the page', 'info');
+      }
     });
   }
 
@@ -158,20 +220,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Check for pending text from context menu or keyboard shortcut
-  chrome.runtime.sendMessage({action: 'getPendingText'}, function(response) {
-    if (response && response.text) {
-      inputText.value = response.text;
-    } else {
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {action: 'getSelectedText'}, function(tabResponse) {
+  // Check for pending text from context menu or keyboard shortcut (popup only)
+  if (!isSidebarMode) {
+    chrome.runtime.sendMessage({action: 'getPendingText'}, function(response) {
+      if (response && response.text) {
+        inputText.value = response.text;
+      } else {
+        sendMessageToActiveTab({action: 'getSelectedText'}).then(function(tabResponse) {
           if (tabResponse && tabResponse.text) {
             inputText.value = tabResponse.text;
           }
         });
-      });
-    }
-  });
+      }
+    });
+  } else {
+    // Sidebar mode: just grab selected text directly
+    sendMessageToActiveTab({action: 'getSelectedText'}).then(function(tabResponse) {
+      if (tabResponse && tabResponse.text) {
+        inputText.value = tabResponse.text;
+      }
+    });
+  }
 
   // Variant tabs
   variantSelector.querySelectorAll('.tab-btn').forEach(btn => {
@@ -261,18 +330,9 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   async function fetchPageContext(maxLength) {
-    return new Promise((resolve) => {
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs || !tabs[0]) { resolve(null); return; }
-        chrome.tabs.sendMessage(tabs[0].id, {action: 'getPageContext', maxLength: maxLength || 4000}, function(response) {
-          if (chrome.runtime.lastError || !response || !response.context) {
-            resolve(null);
-          } else {
-            resolve(response.context);
-          }
-        });
-      });
-    });
+    const response = await sendMessageToActiveTab({action: 'getPageContext', maxLength: maxLength || 4000});
+    if (!response || !response.context) return null;
+    return response.context;
   }
 
   async function fetchReferenceUrls(maxLength) {
@@ -594,21 +654,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!rawText) return;
     const text = cleanResponse(rawText);
 
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'insertText',
-        text: text
-      }, function(response) {
-        if (response && response.success) {
-          showToast('Pasted into chat!', 'success');
-        } else {
-          // Fallback: just copy
-          navigator.clipboard.writeText(text).then(() => {
-            showToast('Copied (paste not supported on this site)', 'success');
-          });
-        }
+    const response = await sendMessageToActiveTab({action: 'insertText', text: text});
+    if (response && response.success) {
+      showToast('Pasted into chat!', 'success');
+    } else {
+      // Fallback: just copy
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied (paste not supported on this site)', 'success');
       });
-    });
+    }
   });
 
   // Clean button - strip thinking tags and formatting from current response
