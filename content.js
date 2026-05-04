@@ -343,6 +343,68 @@ function cleanAuthor(raw) {
   return name;
 }
 
+// Detect if user input references a specific Reddit username (u/Name or Name)
+// Returns the matched username from context, or the input username if exact match found
+function findTargetUsername(input, contextText) {
+  if (!input || !contextText || !contextText.includes('Comment #')) return null;
+  // Look for u/Username pattern in input
+  const match = input.match(/\bu\/([A-Za-z0-9_-]+)\b/);
+  if (match) {
+    // Try to find exact match in context first
+    const exactMatch = findUsernameInContext(match[1], contextText, true);
+    if (exactMatch) return exactMatch;
+    return match[1]; // Return input username if no context match
+  }
+  // Fallback: find words in input that match comment authors (exact or prefix)
+  const words = input.split(/\s+/);
+  for (const word of words) {
+    const clean = word.replace(/[^A-Za-z0-9_-]/g, '');
+    if (clean.length >= 3) {
+      const matched = findUsernameInContext(clean, contextText, false);
+      if (matched) return matched;
+    }
+  }
+  return null;
+}
+
+// Find a username in context, with exact or prefix matching
+function findUsernameInContext(searchName, contextText, exactOnly) {
+  const authorPattern = /Comment #\d+ by u\/([A-Za-z0-9_-]+):/g;
+  const authors = [];
+  let m;
+  while ((m = authorPattern.exec(contextText)) !== null) {
+    authors.push(m[1]);
+  }
+  const searchLower = searchName.toLowerCase();
+  // Try exact match first
+  for (const author of authors) {
+    if (author.toLowerCase() === searchLower) {
+      return author; // Return the exact username from context
+    }
+  }
+  // If not exact-only, try prefix match (e.g., "Kindly_Jump" matches "Kindly_Jump_7642")
+  if (!exactOnly) {
+    for (const author of authors) {
+      if (author.toLowerCase().startsWith(searchLower)) {
+        return author; // Return the matched username from context
+      }
+    }
+  }
+  return null;
+}
+
+// Extract the specific comment text for a given username from context
+function extractTargetComment(username, contextText) {
+  const commentPattern = /Comment #\d+ by u\/([A-Za-z0-9_-]+):\n([\s\S]*?)(?=\n\nComment #|$)/g;
+  let m;
+  while ((m = commentPattern.exec(contextText)) !== null) {
+    if (m[1].toLowerCase() === username.toLowerCase()) {
+      return m[2].trim();
+    }
+  }
+  return null;
+}
+
 // Extract image URLs from a Reddit post (up to 3, filtered for quality)
 function extractRedditImages(skipPromoted) {
   const candidates = [];
@@ -1005,6 +1067,9 @@ document.addEventListener('selectionchange', function() {
       let systemPrompt = 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions, and occasional humor. Avoid corporate speak. Keep it under 3 sentences when possible.';
       const pageContext = extractPageContext(fallbackSettings.contextLimit, fallbackSettings.skipPromotedReddit);
 
+      // Anti-hallucination guard
+      systemPrompt += ' CRITICAL RULES: 1) You MUST use ONLY the provided text context above. Do NOT invent topics, facts, or platforms not in the text. 2) If the user asks you to reply to a specific Reddit user or comment, you MUST reply DIRECTLY to that comment and ONLY that comment. Do NOT reply to other commenters, the original post, or unrelated topics. 3) Do NOT reply about Slack, Discord, email etiquette, social media, or other platforms unless the context EXPLICITLY mentions them. 4) If the context does not contain what the user is asking about, say so — do NOT guess or hallucinate.';
+
       // If on Reddit and formatting toggles are enabled, append formatting instruction
       if (pageContext && pageContext.platform === 'reddit' && fallbackSettings.redditFormatting) {
         const fmtInstr = buildFormattingInstruction(fallbackSettings.redditFormatting);
@@ -1017,7 +1082,34 @@ document.addEventListener('selectionchange', function() {
       if (pageContext && pageContext.text) {
         userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;
       }
-      userContent += `My question:\n${text}\n\nPlease answer based on the text above.`;
+
+      // Check if user is asking about a specific Reddit commenter
+      const targetAuthor = findTargetUsername(text, pageContext?.text || '');
+      let targetCommentText = null;
+      if (targetAuthor) {
+        targetCommentText = extractTargetComment(targetAuthor, pageContext?.text || '');
+        if (targetCommentText) {
+          userContent += `=== TARGET COMMENT TO REPLY TO ===\n`;
+          userContent += `Author: u/${targetAuthor}\n`;
+          userContent += `Comment:\n${targetCommentText}\n`;
+          userContent += `=== END TARGET COMMENT ===\n\n`;
+          userContent += `CRITICAL: Your reply MUST address ONLY the comment above by u/${targetAuthor}.\n`;
+          userContent += `Do NOT reply to other commenters. Do NOT answer the original post. Do NOT write about unrelated topics.\n`;
+          userContent += `Quote or reference specific points from u/${targetAuthor}'s comment to show you read it.\n\n`;
+        } else {
+          userContent += `INSTRUCTION: The user wants you to reply to a comment by Reddit user "u/${targetAuthor}".\n`;
+          userContent += `Search the provided Reddit context above for a comment authored by "u/${targetAuthor}".\n`;
+          userContent += `If found, write your reply directly addressing what they said. Quote or reference their point.\n`;
+          userContent += `Do NOT answer the original post. Do NOT write about unrelated platforms or topics.\n\n`;
+        }
+      }
+
+      userContent += `My request:\n${text}\n\n`;
+      if (targetAuthor) {
+        userContent += `REMEMBER: Reply DIRECTLY to u/${targetAuthor}'s comment. If you cannot find their comment, say so. Do NOT invent content.`;
+      } else {
+        userContent += `Please answer based ONLY on the text provided above.`;
+      }
 
       const messages = [
         { role: 'system', content: systemPrompt },
