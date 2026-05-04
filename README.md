@@ -4,6 +4,8 @@
 
 Get AI help writing replies on any website. Works with your own computer's AI (via Ollama) — no subscriptions, no data sent to the cloud.
 
+Source https://github.com/BlackWh1te/ChatMate
+
 ## What it does
 
 - **Always-visible sidebar** — ChatMate sits on the right edge of every page. No more clicking a tiny toolbar icon.
