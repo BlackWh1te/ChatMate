@@ -1115,7 +1115,11 @@ document.addEventListener('DOMContentLoaded', function() {
       clearTimeout(timeoutId);
       if (!res.ok) return [];
       const data = await res.json();
-      return (data.models || []).map(m => m.name || m.model).filter(Boolean);
+      // Defensive: ensure data is an object and has models array
+      if (!data || typeof data !== 'object') return [];
+      const models = data.models || [];
+      if (!Array.isArray(models)) return [];
+      return models.map(m => m.name || m.model).filter(Boolean);
     } catch (e) {
       return [];
     }
