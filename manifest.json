@@ -41,7 +41,17 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["sidebar.html"],
+      "resources": [
+        "sidebar.html",
+        "popup.html",
+        "popup.js",
+        "settings.html",
+        "settings.js",
+        "icon16.png",
+        "icon32.png",
+        "icon48.png",
+        "icon128.png"
+      ],
       "matches": ["<all_urls>"]
     }
   ],

@@ -317,6 +317,7 @@ document.addEventListener('selectionchange', function() {
 
   const SIDEBAR_WIDTH = 440;
   const SIDEBAR_ZINDEX = 2147483647;
+  const POPUP_URL = chrome.runtime.getURL('popup.html?mode=sidebar');
 
   // Create sidebar container
   const container = document.createElement('div');
@@ -334,10 +335,17 @@ document.addEventListener('selectionchange', function() {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   `;
 
-  const iframe = document.createElement('iframe');
+  let useShadowDOM = false;
+  let iframe = null;
+  let shadowHost = null;
+
+  // Try iframe first (best isolation, but blocked by strict CSP on some sites)
+  iframe = document.createElement('iframe');
   iframe.id = 'chatmate-sidebar-iframe';
-  iframe.src = chrome.runtime.getURL('sidebar.html');
+  iframe.src = POPUP_URL;
   iframe.allow = 'clipboard-read; clipboard-write';
+  iframe.referrerPolicy = 'no-referrer';
+  iframe.credentialless = true;
   iframe.style.cssText = `
     width: 100%;
     height: 100%;
@@ -345,7 +353,6 @@ document.addEventListener('selectionchange', function() {
     background: #fff;
     display: block;
   `;
-
   container.appendChild(iframe);
 
   // Create toggle button (always visible)
@@ -377,6 +384,298 @@ document.addEventListener('selectionchange', function() {
   document.body.appendChild(container);
   document.body.appendChild(toggle);
 
+  // Detect iframe load failure (blocked by CSP or Chrome security)
+  let iframeReady = false;
+  const iframeCheckTimeout = setTimeout(function() {
+    if (!iframeReady) {
+      switchToShadowDOM();
+    }
+  }, 5000);
+
+  iframe.addEventListener('load', function() {
+    iframeReady = true;
+    clearTimeout(iframeCheckTimeout);
+  });
+
+  function switchToShadowDOM() {
+    if (useShadowDOM) return;
+    useShadowDOM = true;
+
+    if (iframe && iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+    }
+
+    shadowHost = document.createElement('div');
+    shadowHost.id = 'chatmate-shadow-host';
+    shadowHost.style.cssText = 'width: 100%; height: 100%;';
+    container.appendChild(shadowHost);
+
+    const shadow = shadowHost.attachShadow({mode: 'open'});
+
+    shadow.innerHTML = `
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .fallback-sidebar {
+          width: 100%;
+          height: 100vh;
+          background: #f8f9fa;
+          display: flex;
+          flex-direction: column;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 14px;
+          color: #212529;
+        }
+        .fallback-header {
+          height: 36px;
+          background: #0d6efd;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 12px;
+          font-size: 13px;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+        .fallback-header button {
+          background: none;
+          border: none;
+          color: #fff;
+          font-size: 16px;
+          cursor: pointer;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+        }
+        .fallback-header button:hover { background: rgba(255,255,255,0.2); }
+        .fallback-body {
+          flex: 1;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          overflow-y: auto;
+        }
+        .fallback-input {
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #dee2e6;
+          border-radius: 8px;
+          font-family: inherit;
+          font-size: 14px;
+          resize: vertical;
+          min-height: 80px;
+        }
+        .fallback-btn {
+          background: #0d6efd;
+          color: white;
+          border: none;
+          padding: 10px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        .fallback-btn:hover { background: #0b5ed7; }
+        .fallback-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .fallback-response {
+          background: #f1f3f4;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 14px;
+          line-height: 1.6;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          border: 1px solid #dee2e6;
+          max-height: 300px;
+          overflow-y: auto;
+          display: none;
+        }
+        .fallback-response.show { display: block; }
+        .fallback-error {
+          background: #f8d7da;
+          color: #721c24;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 13px;
+          display: none;
+          border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+        .fallback-error.show { display: block; }
+        .fallback-info {
+          font-size: 12px;
+          color: #6c757d;
+          line-height: 1.5;
+        }
+        .fallback-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .fallback-secondary {
+          background: #f1f3f4;
+          color: #212529;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 13px;
+          flex: 1;
+        }
+        .fallback-secondary:hover { background: #dee2e6; }
+      </style>
+      <div class="fallback-sidebar">
+        <div class="fallback-header">
+          <span>💬 ChatMate</span>
+          <button id="fallback-close" title="Hide sidebar">✕</button>
+        </div>
+        <div class="fallback-body">
+          <div class="fallback-info">
+            <strong>Sidebar mode unavailable on this site.</strong><br>
+            This website blocks embedded frames. Use the toolbar icon to open ChatMate in a popup, or type below to generate replies directly.
+          </div>
+          <textarea id="fallback-input" class="fallback-input" placeholder="What do you want to reply to?"></textarea>
+          <button id="fallback-generate" class="fallback-btn">✨ Write a Reply</button>
+          <div id="fallback-error" class="fallback-error"></div>
+          <div id="fallback-response" class="fallback-response"></div>
+          <div class="fallback-actions" id="fallback-actions" style="display: none;">
+            <button id="fallback-copy" class="fallback-secondary">📋 Copy</button>
+            <button id="fallback-paste" class="fallback-secondary">📥 Paste</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const fallbackInput = shadow.getElementById('fallback-input');
+    const fallbackGenerate = shadow.getElementById('fallback-generate');
+    const fallbackError = shadow.getElementById('fallback-error');
+    const fallbackResponse = shadow.getElementById('fallback-response');
+    const fallbackActions = shadow.getElementById('fallback-actions');
+    const fallbackCopy = shadow.getElementById('fallback-copy');
+    const fallbackPaste = shadow.getElementById('fallback-paste');
+    const fallbackClose = shadow.getElementById('fallback-close');
+
+    let fallbackSettings = null;
+    let fallbackAbort = null;
+
+    function showFallbackError(msg) {
+      fallbackError.textContent = msg;
+      fallbackError.classList.add('show');
+    }
+    function hideFallbackError() {
+      fallbackError.classList.remove('show');
+    }
+
+    chrome.storage.local.get([
+      'ollamaUrl', 'modelName', 'temperature', 'maxTokens',
+      'templates', 'contextLimit', 'skipPromotedReddit'
+    ], function(result) {
+      fallbackSettings = {
+        ollamaUrl: result.ollamaUrl,
+        modelName: result.modelName || 'llama3',
+        temperature: result.temperature || 0.7,
+        maxTokens: result.maxTokens || 500,
+        contextLimit: result.contextLimit || 4000,
+        skipPromotedReddit: result.skipPromotedReddit !== false
+      };
+    });
+
+    fallbackGenerate.addEventListener('click', async function() {
+      if (fallbackGenerate.disabled) {
+        if (fallbackAbort) fallbackAbort.abort();
+        fallbackAbort = null;
+        fallbackGenerate.disabled = false;
+        fallbackGenerate.textContent = '✨ Write a Reply';
+        return;
+      }
+
+      const text = fallbackInput.value.trim();
+      if (!text) {
+        showFallbackError('Type something first');
+        return;
+      }
+      if (!fallbackSettings || !fallbackSettings.ollamaUrl) {
+        showFallbackError('Open Settings and connect to your AI server');
+        return;
+      }
+
+      hideFallbackError();
+      fallbackGenerate.disabled = true;
+      fallbackGenerate.textContent = '⚡ Thinking...';
+      fallbackResponse.classList.remove('show');
+      fallbackActions.style.display = 'none';
+      fallbackResponse.textContent = '';
+
+      fallbackAbort = new AbortController();
+
+      let systemPrompt = 'You are a helpful friend. Write short, natural replies that sound like a real person texting. Use casual language, contractions, and occasional humor. Avoid corporate speak. Keep it under 3 sentences when possible.';
+      const pageContext = extractPageContext(fallbackSettings.contextLimit, fallbackSettings.skipPromotedReddit);
+      let userContent = '';
+      if (pageContext && pageContext.text) {
+        userContent += `Here is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---\n\n`;
+      }
+      userContent += `My question:\n${text}\n\nPlease answer based on the text above.`;
+
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent }
+      ];
+
+      try {
+        const res = await fetch(`${fallbackSettings.ollamaUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: fallbackSettings.modelName,
+            messages: messages,
+            stream: false,
+            options: {
+              temperature: fallbackSettings.temperature,
+              num_predict: fallbackSettings.maxTokens
+            }
+          }),
+          signal: fallbackAbort.signal
+        });
+
+        if (!res.ok) {
+          throw new Error(`Ollama error: ${res.status}`);
+        }
+        const data = await res.json();
+        const reply = data.message?.content || data.response || '';
+        fallbackResponse.textContent = reply;
+        fallbackResponse.classList.add('show');
+        fallbackActions.style.display = 'flex';
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          showFallbackError(err.message);
+        }
+      } finally {
+        fallbackGenerate.disabled = false;
+        fallbackGenerate.textContent = '✨ Write a Reply';
+        fallbackAbort = null;
+      }
+    });
+
+    fallbackCopy.addEventListener('click', async function() {
+      try {
+        await navigator.clipboard.writeText(fallbackResponse.textContent);
+      } catch (e) {}
+    });
+
+    fallbackPaste.addEventListener('click', function() {
+      const inserted = insertTextIntoActiveElement(fallbackResponse.textContent);
+      if (!inserted) {
+        navigator.clipboard.writeText(fallbackResponse.textContent);
+      }
+    });
+
+    fallbackClose.addEventListener('click', function() {
+      toggle.click();
+    });
+  }
+
   // Visibility state
   let visible = true;
   chrome.storage.local.get(['sidebarVisible'], function(result) {
@@ -402,23 +701,9 @@ document.addEventListener('selectionchange', function() {
 
   // Listen for messages from sidebar iframe (popup.html running inside)
   window.addEventListener('message', function(event) {
-    // Only respond to our sidebar iframe
-    if (!iframe.contentWindow) return;
-    if (event.source !== iframe.contentWindow) {
-      // Could be from nested iframe (popup.html inside sidebar.html)
-      // Check if event.source is a descendant of our iframe
-      try {
-        let src = event.source;
-        while (src && src !== iframe.contentWindow) {
-          src = src.parent;
-          if (src === window) return; // reached top, not our iframe
-        }
-        if (!src) return;
-      } catch (e) {
-        // Cross-origin access error means it's not our iframe
-        return;
-      }
-    }
+    if (useShadowDOM) return;
+    if (!iframe || !iframe.contentWindow) return;
+    if (event.source !== iframe.contentWindow) return;
 
     const msg = event.data;
     if (!msg || !msg._chatmate) return;
@@ -427,12 +712,11 @@ document.addEventListener('selectionchange', function() {
     if (msg.action === 'getSelectedText') {
       result = {text: window.getSelection().toString().trim()};
     } else if (msg.action === 'getPageContext') {
-      result = {context: extractPageContext(msg.maxLength || 4000)};
+      result = {context: extractPageContext(msg.maxLength || 4000, msg.skipPromoted)};
     } else if (msg.action === 'insertText') {
       result = {success: insertTextIntoActiveElement(msg.text)};
     }
 
-    // Send response back to the source iframe
     if (event.source && event.source.postMessage) {
       event.source.postMessage({
         _chatmateResponse: true,
@@ -442,8 +726,10 @@ document.addEventListener('selectionchange', function() {
     }
   });
 
-  // Also handle direct toggle requests from sidebar wrapper
+  // Handle sidebar toggle requests from popup.html
   window.addEventListener('message', function(event) {
+    if (useShadowDOM) return;
+    if (!iframe || !iframe.contentWindow) return;
     if (event.source !== iframe.contentWindow) return;
     const msg = event.data;
     if (msg && msg.action === 'toggleSidebar') {

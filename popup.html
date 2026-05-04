@@ -392,6 +392,40 @@
       padding-top: 4px;
     }
 
+    /* Sidebar top bar */
+    #sidebar-topbar {
+      display: none;
+      height: 36px;
+      background: #0d6efd;
+      color: #fff;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    html.sidebar-mode #sidebar-topbar {
+      display: flex;
+    }
+    #sidebar-topbar button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+    #sidebar-topbar button:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
     .grab-row {
       display: flex;
       justify-content: space-between;
@@ -431,6 +465,10 @@
   </style>
 </head>
 <body>
+  <div id="sidebar-topbar">
+    <span>💬 ChatMate</span>
+    <button id="topbar-close-btn" title="Hide sidebar">✕</button>
+  </div>
   <div class="container">
     <div class="header">
       <h1>💬 ChatMate</h1>
