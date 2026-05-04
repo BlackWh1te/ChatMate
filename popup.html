@@ -474,6 +474,41 @@
     .toast-success { background: var(--success); color: white; }
     .toast-info { background: var(--primary); color: white; }
 
+    /* Empty state */
+    .empty-state-box {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--secondary-text);
+    }
+    .empty-state-box .empty-icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+      opacity: 0.6;
+    }
+    .empty-state-box p {
+      font-size: 13px;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* Keyboard hint */
+    .kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--secondary-text);
+      background: var(--response-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+    }
+    [data-theme="dark"] .kbd {
+      box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+    }
+
     /* Footer */
     .footer {
       display: flex;
@@ -496,6 +531,16 @@
       background: var(--primary-soft);
       text-decoration: none;
     }
+    .footer-left {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .footer-hint {
+      font-size: 11px;
+      color: var(--secondary-text);
+      font-weight: 500;
+    }
 
     .model-info {
       font-size: 11px;
@@ -516,6 +561,9 @@
     }
     html.sidebar-mode .header {
       padding-top: 2px;
+    }
+    html.sidebar-mode .header h1 {
+      display: none;
     }
 
     /* Sidebar top bar */
@@ -761,10 +809,20 @@
           <span>🔄</span> Redo
         </button>
       </div>
+
+      <div class="empty-state-box" id="responses-empty">
+        <div class="empty-icon">✨</div>
+        <p>Your replies will appear here.<br>Type something and click <strong>Write a Reply</strong>.</p>
+      </div>
     </div>
 
     <div class="footer">
-      <a href="settings.html" target="_blank">⚙️ Settings</a>
+      <div class="footer-left">
+        <a href="settings.html" target="_blank">⚙️ Settings</a>
+        <span class="footer-hint">
+          <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">G</span> to generate
+        </span>
+      </div>
       <span class="model-info" id="footer-info"></span>
     </div>
   </div>

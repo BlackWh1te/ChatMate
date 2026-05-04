@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const topbarMinimizeBtn = document.getElementById('topbar-minimize-btn');
   const grabTextBtn = document.getElementById('grab-text-btn');
+  const responsesEmpty = document.getElementById('responses-empty');
 
   // State
   let currentSettings = null;
@@ -216,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
       if (hasContent) {
-        responsesContainer.classList.add('show');
+        showResponses(true);
         const active = result.lastActiveVariant || 0;
         setActiveVariant(active);
         updateActionButtons();
@@ -232,6 +233,16 @@ document.addEventListener('DOMContentLoaded', function() {
     buttons.forEach((btn, i) => {
       btn.style.display = i < count ? 'block' : 'none';
     });
+  }
+
+  function showResponses(show) {
+    if (show) {
+      responsesContainer.classList.add('show');
+      if (responsesEmpty) responsesEmpty.style.display = 'none';
+    } else {
+      responsesContainer.classList.remove('show');
+      if (responsesEmpty) responsesEmpty.style.display = 'block';
+    }
   }
 
   // Check for pending text from context menu or keyboard shortcut (popup only)
@@ -436,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
     generateBtn.innerHTML = '<span>⚡</span> Thinking<span class="thinking-text"></span>';
     generateBtn.style.background = 'var(--danger)';
     hideError();
-    responsesContainer.classList.remove('show');
+    showResponses(false);
     responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
     loading.classList.add('show');
 
@@ -487,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       if (hasAnySuccess) {
-        responsesContainer.classList.add('show');
+        showResponses(true);
         setActiveVariant(0);
         updateModelInfo(settings, currentPageContext);
 
@@ -574,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   async function streamResponse(url, model, messages, index, temperature, maxTokens) {
-    responsesContainer.classList.add('show');
+    showResponses(true);
     responseCards[index].classList.add('active');
     loading.classList.remove('show');
 
@@ -711,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Clear button - remove all responses and storage
   clearBtn.addEventListener('click', function() {
     responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
-    responsesContainer.classList.remove('show');
+    showResponses(false);
     chrome.storage.local.remove(['lastResponses', 'lastActiveVariant', 'lastInput']);
     currentInput = '';
     updateActionButtons();

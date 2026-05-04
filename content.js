@@ -340,9 +340,11 @@ document.addEventListener('selectionchange', function() {
     z-index: ${SIDEBAR_ZINDEX};
     border-radius: 16px 0 0 16px;
     overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    border: 1px solid rgba(0,0,0,0.08);
-    background: #ffffff;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.06);
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
     transform: translateX(0);
     opacity: 1;
@@ -459,9 +461,11 @@ document.addEventListener('selectionchange', function() {
   function applySidebarTheme(theme) {
     const isDark = theme === 'dark';
     const c = isDark ? COLORS.dark : COLORS.light;
-    container.style.background = c.containerBg;
-    container.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    container.style.boxShadow = isDark ? '0 8px 32px rgba(0,0,0,0.45)' : '0 8px 32px rgba(0,0,0,0.15)';
+    container.style.background = isDark ? 'rgba(26,26,46,0.98)' : 'rgba(255,255,255,0.98)';
+    container.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    container.style.boxShadow = isDark
+      ? '0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.2)'
+      : '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)';
     miniBtn.style.background = c.btn;
     miniBtn.style.boxShadow = `0 4px 16px ${c.btnGlow}`;
     miniBtn.style.animation = isDark ? 'chatmate-pulse-dark 2.5s ease-in-out infinite' : 'chatmate-pulse 2.5s ease-in-out infinite';
