@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let hasAnySuccess = false;
       results.forEach((result, i) => {
         if (result.status === 'fulfilled' && result.value) {
-          responseCards[i].textContent = result.value;
+          responseCards[i].textContent = cleanResponse(result.value);
           hasAnySuccess = true;
         } else if (result.status === 'rejected') {
           responseCards[i].textContent = 'Oops: ' + result.reason.message;
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Save to history (save first successful response)
         const firstSuccess = results.find(r => r.status === 'fulfilled' && r.value);
         if (firstSuccess) {
-          saveToHistory(text, firstSuccess.value, settings.modelName);
+          saveToHistory(text, cleanResponse(firstSuccess.value), settings.modelName);
         }
       }
     } catch (err) {
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
       const data = await res.json();
-      return data.response;
+      return cleanResponse(data.response);
     }
   }
 
@@ -432,8 +432,10 @@ document.addEventListener('DOMContentLoaded', function() {
             responseCards[index].scrollTop = responseCards[index].scrollHeight;
           }
           if (data.done) {
+            const cleaned = cleanResponse(fullText);
+            responseCards[index].textContent = cleaned;
             updateActionButtons();
-            return fullText;
+            return cleaned;
           }
         } catch (e) {
           // Ignore malformed lines
@@ -443,10 +445,34 @@ document.addEventListener('DOMContentLoaded', function() {
     return fullText;
   }
 
+  // Clean up model response for copying
+  function cleanResponse(text) {
+    if (!text) return '';
+    return text
+      // Strip thinking/reasoning tags (common in reasoning models)
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+      // Strip ollama metadata markers
+      .replace(/\[DONE\]/gi, '')
+      .replace(/\[END\]/gi, '')
+      // Strip stray assistant/user role markers
+      .replace(/^assistant:\s*/i, '')
+      .replace(/^user:\s*/i, '')
+      .replace(/^system:\s*/i, '')
+      // Remove markdown code block wrappers if present
+      .replace(/```(?:json|text|markdown)?\n?/gi, '')
+      // Clean up extra blank lines
+      .replace(/\n{4,}/g, '\n\n\n')
+      .trim();
+  }
+
   // Copy button
   copyBtn.addEventListener('click', async function() {
-    const text = responseCards[activeVariant].textContent;
-    if (!text) return;
+    const rawText = responseCards[activeVariant].textContent;
+    if (!rawText) return;
+    const text = cleanResponse(rawText);
 
     try {
       await navigator.clipboard.writeText(text);
@@ -458,8 +484,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Paste button - try to insert into page
   pasteBtn.addEventListener('click', async function() {
-    const text = responseCards[activeVariant].textContent;
-    if (!text) return;
+    const rawText = responseCards[activeVariant].textContent;
+    if (!rawText) return;
+    const text = cleanResponse(rawText);
 
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {
