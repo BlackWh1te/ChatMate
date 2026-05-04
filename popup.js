@@ -718,8 +718,12 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error('Go to Settings and set up your AI server');
       }
 
-      // Fetch page context (always on now)
-      currentPageContext = await fetchPageContext(4000, true);
+      // Only use page context if user clicked Read Page
+      currentPageContext = null;
+      if (storedPageText) {
+        // Re-fetch to get fresh images, but we already have the text
+        currentPageContext = await fetchPageContext(4000, true);
+      }
 
       // Collect images: from freshly fetched context, or from stored read-page data
       const rawImages = (currentPageContext && currentPageContext.images)
