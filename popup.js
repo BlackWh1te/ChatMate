@@ -177,7 +177,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Read Page button - extract page content for study/questions
   readPageBtn.addEventListener('click', async function() {
     readPageBtn.disabled = true;
-    readPageBtn.textContent = '📖 Reading...';
+    readPageBtn.classList.add('btn-reading');
+    readPageBtn.innerHTML = '<span>📖</span> Reading page<span class="thinking-text"></span>';
     storedPageText = null;
     pagePreview.style.display = 'none';
 
@@ -199,6 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showError('Failed to read page: ' + err.message);
     } finally {
       readPageBtn.disabled = false;
+      readPageBtn.classList.remove('btn-reading');
       readPageBtn.innerHTML = '<span>📖</span> Read Page';
     }
   });
@@ -307,7 +309,8 @@ document.addEventListener('DOMContentLoaded', function() {
   async function generateResponses(text, templateId) {
     isGenerating = true;
     abortController = new AbortController();
-    generateBtn.innerHTML = '<span>⏹</span> Stop';
+    generateBtn.classList.add('btn-thinking');
+    generateBtn.innerHTML = '<span>⚡</span> Thinking<span class="thinking-text"></span>';
     generateBtn.style.background = 'var(--danger)';
     hideError();
     responsesContainer.classList.remove('show');
@@ -383,16 +386,17 @@ document.addEventListener('DOMContentLoaded', function() {
   function resetGeneration() {
     isGenerating = false;
     abortController = null;
-    generateBtn.innerHTML = '<span>⚡</span> Generate Response';
+    generateBtn.classList.remove('btn-thinking');
+    generateBtn.innerHTML = '<span>⚡</span> Write a Reply';
     generateBtn.style.background = '';
     loading.classList.remove('show');
   }
 
   async function generateSingleResponse(prompt, settings, systemPrompt, temperature, index, total, pageContext, refContents) {
     if (total > 1) {
-      loadingText.textContent = `Writing reply ${index + 1} of ${total}...`;
+      loadingText.innerHTML = `Writing reply ${index + 1} of ${total}<span class="thinking-text"></span>`;
     } else {
-      loadingText.textContent = 'Writing your reply...';
+      loadingText.innerHTML = 'Writing your reply<span class="thinking-text"></span>';
     }
 
     const url = `${settings.ollamaUrl}/api/generate`;
