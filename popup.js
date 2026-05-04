@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('response-2')
   ];
   const copyBtn = document.getElementById('copy-btn');
+  const cleanBtn = document.getElementById('clean-btn');
   const pasteBtn = document.getElementById('paste-btn');
   const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
@@ -503,6 +504,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     });
+  });
+
+  // Clean button - strip thinking tags and formatting from current response
+  cleanBtn.addEventListener('click', function() {
+    const rawText = responseCards[activeVariant].textContent;
+    if (!rawText) return;
+    const cleaned = cleanResponse(rawText);
+    responseCards[activeVariant].textContent = cleaned;
+    showToast('Cleaned up!', 'success');
   });
 
   // Regenerate button
