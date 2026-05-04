@@ -211,10 +211,19 @@ document.addEventListener('DOMContentLoaded', function() {
       const pageContext = await fetchPageContext(settings.contextLimit);
       if (pageContext && pageContext.text) {
         storedPageText = pageContext.text;
-        const preview = pageContext.text.substring(0, 300);
-        pagePreview.innerHTML = `<strong>Page read (${pageContext.text.length.toLocaleString()} chars):</strong><br><br>${preview}${pageContext.text.length > 300 ? '...' : ''}<br><br><em>Now type your question below (e.g., "What was on page 210?")</em>`;
+        const isReddit = pageContext.platform === 'reddit';
+        const preview = pageContext.text.substring(0, 350);
+        let header = `<strong>Page read (${pageContext.text.length.toLocaleString()} chars)`;
+        if (isReddit && pageContext.commentCount) {
+          header += ` — ${pageContext.commentCount} comments found`;
+        }
+        header += `:</strong>`;
+        const hint = isReddit
+          ? `<em>Ask about the post or any comment (e.g., "Summarize the top comments", "What does comment #3 say?")</em>`
+          : `<em>Now type your question below (e.g., "What was on page 210?")</em>`;
+        pagePreview.innerHTML = `${header}<br><br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
         pagePreview.style.display = 'block';
-        showToast(`Read ${pageContext.text.length.toLocaleString()} characters from page`, 'success');
+        showToast(`Read ${pageContext.text.length.toLocaleString()} characters${isReddit ? ` (${pageContext.commentCount} comments)` : ''}`, 'success');
         // Focus the input so user can type their question
         inputText.focus();
       } else {
@@ -322,7 +331,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (explicitPageText) {
       // User explicitly read the page for study/questions
-      prompt += `\n\nHere is the full text of the page I am reading:\n---\n${explicitPageText}\n---`;
+      if (pageContext && pageContext.platform === 'reddit') {
+        prompt += `\n\nHere is a Reddit post with comments I am reading:\n---\n${explicitPageText}\n---`;
+      } else {
+        prompt += `\n\nHere is the full text of the page I am reading:\n---\n${explicitPageText}\n---`;
+      }
     } else if (pageContext && pageContext.text) {
       prompt += `\n\nHere is relevant context from the current page "${pageContext.title || ''}" (${pageContext.url || ''}):\n---\n${pageContext.text}\n---`;
     }

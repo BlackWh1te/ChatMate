@@ -21,6 +21,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 function extractPageContext(maxLength) {
+  // Detect Reddit and use specialized extraction
+  if (isReddit()) {
+    return extractRedditContext(maxLength);
+  }
+
   // Try to find the main content area
   const selectors = [
     'article', 'main', '[role="main"]',
@@ -70,6 +75,118 @@ function extractPageContext(maxLength) {
     title: document.title,
     text: content,
     length: content.length
+  };
+}
+
+function isReddit() {
+  return window.location.hostname.includes('reddit.com');
+}
+
+function extractRedditContext(maxLength) {
+  const parts = [];
+
+  // --- POST TITLE ---
+  const titleSelectors = [
+    'h1[data-testid="post-title"]',
+    'h1._eYtD2XCVieq6emjKBH3m',
+    'a.title',
+    'h1'
+  ];
+  for (const sel of titleSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      parts.push('[POST TITLE]\n' + cleanText(el.innerText));
+      break;
+    }
+  }
+
+  // --- POST BODY (self-posts) ---
+  const bodySelectors = [
+    '[data-testid="post-content"]',
+    '.usertext-body .md',
+    'div[data-click-id="text"]',
+    '.expando .usertext-body'
+  ];
+  for (const sel of bodySelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const body = cleanText(el.innerText);
+      if (body.length > 10) {
+        parts.push('[POST BODY]\n' + body);
+        break;
+      }
+    }
+  }
+
+  // --- COMMENTS ---
+  const commentData = [];
+
+  // New Reddit comment selectors
+  const newComments = document.querySelectorAll('[data-testid="comment"]');
+  if (newComments.length > 0) {
+    newComments.forEach((comment, i) => {
+      const authorEl = comment.querySelector('[data-testid="comment_author_link"]');
+      const bodyEl = comment.querySelector('[data-testid="comment-content"]');
+      if (bodyEl) {
+        commentData.push({
+          author: authorEl ? authorEl.innerText : 'unknown',
+          body: cleanText(bodyEl.innerText),
+          index: i + 1
+        });
+      }
+    });
+  }
+
+  // Old Reddit comment selectors (fallback)
+  if (commentData.length === 0) {
+    const oldComments = document.querySelectorAll('.comment, .entry');
+    oldComments.forEach((comment, i) => {
+      const authorEl = comment.querySelector('.author');
+      const bodyEl = comment.querySelector('.usertext-body .md');
+      if (bodyEl) {
+        commentData.push({
+          author: authorEl ? authorEl.innerText : 'unknown',
+          body: cleanText(bodyEl.innerText),
+          index: i + 1
+        });
+      }
+    });
+  }
+
+  // Add comments to parts (top 20 most relevant)
+  if (commentData.length > 0) {
+    parts.push('[COMMENTS]');
+    commentData.slice(0, 20).forEach(c => {
+      parts.push(`Comment #${c.index} by u/${c.author}:\n${c.body}`);
+    });
+    if (commentData.length > 20) {
+      parts.push(`... and ${commentData.length - 20} more comments`);
+    }
+  }
+
+  let content = parts.join('\n\n');
+
+  // Truncate intelligently: keep post info, truncate comments if needed
+  if (content.length > maxLength) {
+    // Try to keep post title + body, truncate comments
+    const postEnd = content.indexOf('[COMMENTS]');
+    if (postEnd > 0 && postEnd < maxLength) {
+      const roomForComments = maxLength - postEnd - 50;
+      const commentsText = content.substring(postEnd);
+      const truncatedComments = commentsText.substring(0, roomForComments);
+      content = content.substring(0, postEnd) + '\n\n' + truncatedComments + '\n... [truncated]';
+    } else {
+      content = content.substring(0, maxLength) + '... [truncated]';
+    }
+  }
+
+  return {
+    url: window.location.href,
+    title: document.title,
+    text: content,
+    length: content.length,
+    platform: 'reddit',
+    commentCount: commentData.length
   };
 }
 
