@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let storedPageImages = null;
 
   // Anti-hallucination guard: every prompt ends with this instruction
-  const ON_TOPIC_GUARD = 'CRITICAL: Only respond to the actual topic and questions in the provided context. Do NOT invent unrelated advice, do NOT hallucinate details not in the text, and do NOT reply about Slack, Discord, email etiquette, or other platforms unless the context explicitly mentions them. If the context is unclear, ask for clarification instead of guessing.';
+  const ON_TOPIC_GUARD = 'CRITICAL RULES: 1) You MUST use ONLY the provided text context above. Do NOT invent topics, facts, or platforms not in the text. 2) If the user asks about a specific person, username, or comment, you MUST find that exact content in the provided context and reply to it directly. 3) Do NOT reply about Slack, Discord, email etiquette, social media, or other platforms unless the context EXPLICITLY mentions them. 4) If the context does not contain what the user is asking about, say so — do NOT guess or hallucinate.';
 
   // Built-in high-quality templates that ship with the extension
   const BUILTIN_TEMPLATES = [
@@ -397,6 +397,18 @@ document.addEventListener('DOMContentLoaded', function() {
     pasteBtn.disabled = !hasContent;
   }
 
+  // Extract comment author list from Reddit context text for preview
+  function extractAuthorList(contextText) {
+    if (!contextText || !contextText.includes('Comment #')) return [];
+    const authors = [];
+    const pattern = /Comment #(\d+) by u\/([A-Za-z0-9_-]+):/g;
+    let m;
+    while ((m = pattern.exec(contextText)) !== null) {
+      authors.push({ num: m[1], name: m[2] });
+    }
+    return authors;
+  }
+
   // Read Page button - extract page content for study/questions
   readPageBtn.addEventListener('click', async function() {
     readPageBtn.disabled = true;
@@ -423,10 +435,21 @@ document.addEventListener('DOMContentLoaded', function() {
           header += ` — ${imageCount} image${imageCount > 1 ? 's' : ''} detected`;
         }
         header += `:</strong>`;
+
+        let authorHint = '';
+        if (isReddit && pageContext.commentCount) {
+          const authors = extractAuthorList(pageContext.text);
+          if (authors.length > 0) {
+            const names = authors.slice(0, 8).map(a => `u/${a.name}`).join(', ');
+            const more = authors.length > 8 ? ` +${authors.length - 8} more` : '';
+            authorHint = `<div style="margin:6px 0;font-size:11px;color:var(--secondary-text);">Commenters: ${names}${more}</div>`;
+          }
+        }
+
         const hint = isReddit
-          ? `<em>Ask about the post or any comment (e.g., "Summarize the top comments", "What does comment #3 say?")</em>`
+          ? `<em>Ask about the post or reply to a commenter (e.g., "Reply to u/SomeUser", "What does comment #3 say?")</em>`
           : `<em>Now type your question below (e.g., "What was on page 210?")</em>`;
-        pagePreview.innerHTML = `${header}<br><br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
+        pagePreview.innerHTML = `${header}<br>${authorHint}<br><pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:inherit;font-size:12px;color:var(--text-color);">${preview}${pageContext.text.length > 350 ? '...' : ''}</pre><br>${hint}`;
         pagePreview.classList.add('show');
         const toastParts = [`Read ${pageContext.text.length.toLocaleString()} characters`];
         if (isReddit && pageContext.commentCount) toastParts.push(`${pageContext.commentCount} comments`);
@@ -524,6 +547,29 @@ document.addEventListener('DOMContentLoaded', function() {
     return text.substring(0, maxLen) + '... [truncated]';
   }
 
+  // Detect if user input references a specific Reddit username (u/Name or Name)
+  function findTargetUsername(input, contextText) {
+    if (!input || !contextText || !contextText.includes('Comment #')) return null;
+    // Look for u/Username pattern
+    const match = input.match(/\bu\/([A-Za-z0-9_-]+)\b/);
+    if (match) return match[1];
+    // Fallback: find words in input that appear as comment authors in context
+    const authorPattern = /Comment #\d+ by u\/([A-Za-z0-9_-]+):/g;
+    const authors = new Set();
+    let m;
+    while ((m = authorPattern.exec(contextText)) !== null) {
+      authors.add(m[1].toLowerCase());
+    }
+    const words = input.split(/\s+/);
+    for (const word of words) {
+      const clean = word.replace(/[^A-Za-z0-9_-]/g, '').toLowerCase();
+      if (clean.length >= 3 && authors.has(clean)) {
+        return word.replace(/[^A-Za-z0-9_-]/g, '');
+      }
+    }
+    return null;
+  }
+
   // Build Ollama /api/chat messages array
   // Separates system instructions from user content for much better instruction-tuned model responses
   // images: array of base64 JPEG strings (for vision models)
@@ -550,7 +596,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (images && images.length > 0) {
       userContent += `I have also included ${images.length} image${images.length > 1 ? 's' : ''} from the page. Please analyze the image${images.length > 1 ? 's' : ''} together with the text above and answer my question considering both.\n\n`;
     }
-    userContent += `My question:\n${userInput}\n\nPlease answer based on the text above.`;
+
+    // Check if user is asking about a specific Reddit commenter
+    const targetAuthor = findTargetUsername(userInput, explicitPageText || (pageContext?.text || ''));
+    if (targetAuthor) {
+      userContent += `INSTRUCTION: The user wants you to reply to a specific comment by Reddit user "u/${targetAuthor}".\n`;
+      userContent += `STEP 1: Search the provided Reddit context above for a comment authored by "u/${targetAuthor}".\n`;
+      userContent += `STEP 2: Read that comment carefully.\n`;
+      userContent += `STEP 3: Write your reply directly addressing what u/${targetAuthor} said. Quote or reference their point.\n`;
+      userContent += `STEP 4: Do NOT answer the original post. Do NOT write about unrelated platforms or topics.\n\n`;
+    }
+
+    userContent += `My request:\n${userInput}\n\n`;
+    if (targetAuthor) {
+      userContent += `REMEMBER: Reply directly to u/${targetAuthor}'s comment using ONLY the context above. Do NOT invent content.`;
+    } else {
+      userContent += `Please answer based ONLY on the text provided above.`;
+    }
 
     const msg = { role: 'user', content: userContent };
     if (images && images.length > 0) {
