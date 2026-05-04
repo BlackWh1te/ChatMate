@@ -1068,7 +1068,7 @@ document.addEventListener('selectionchange', function() {
       const pageContext = extractPageContext(fallbackSettings.contextLimit, fallbackSettings.skipPromotedReddit);
 
       // Anti-hallucination guard
-      systemPrompt += ' CRITICAL RULES: 1) You MUST use ONLY the provided text context above. Do NOT invent topics, facts, or platforms not in the text. 2) If the user asks you to reply to a specific Reddit user or comment, you MUST reply DIRECTLY to that comment and ONLY that comment. Do NOT reply to other commenters, the original post, or unrelated topics. 3) Do NOT reply about Slack, Discord, email etiquette, social media, or other platforms unless the context EXPLICITLY mentions them. 4) If the context does not contain what the user is asking about, say so — do NOT guess or hallucinate.';
+      systemPrompt += ' CRITICAL RULES: 1) You MUST use ONLY the provided text context above. Do NOT invent topics, facts, or platforms not in the text. 2) If the user asks you to reply to a specific Reddit user or comment, you MUST reply DIRECTLY to that comment and ONLY that comment. Do NOT reply to other commenters, do NOT summarize other people\'s comments, do NOT say "I agree with [other commenter]", do NOT mention other users at all. 3) Do NOT reply about Slack, Discord, email etiquette, social media, or other platforms unless the context EXPLICITLY mentions them. 4) If the context does not contain what the user is asking about, say so — do NOT guess or hallucinate. 5) Keep your reply focused and relevant to the specific comment you are replying to.';
 
       // If on Reddit and formatting toggles are enabled, append formatting instruction
       if (pageContext && pageContext.platform === 'reddit' && fallbackSettings.redditFormatting) {
@@ -1093,9 +1093,17 @@ document.addEventListener('selectionchange', function() {
           userContent += `Author: u/${targetAuthor}\n`;
           userContent += `Comment:\n${targetCommentText}\n`;
           userContent += `=== END TARGET COMMENT ===\n\n`;
-          userContent += `CRITICAL: Your reply MUST address ONLY the comment above by u/${targetAuthor}.\n`;
-          userContent += `Do NOT reply to other commenters. Do NOT answer the original post. Do NOT write about unrelated topics.\n`;
-          userContent += `Quote or reference specific points from u/${targetAuthor}'s comment to show you read it.\n\n`;
+          userContent += `CRITICAL INSTRUCTION: You are writing a Reddit reply DIRECTLY to u/${targetAuthor}'s comment above.\n\n`;
+          userContent += `WHAT TO DO:\n`;
+          userContent += `- Address the specific points u/${targetAuthor} made in their comment\n`;
+          userContent += `- Quote or reference their exact words to show you read their comment\n`;
+          userContent += `- Keep your reply focused on their comment only\n\n`;
+          userContent += `WHAT NOT TO DO:\n`;
+          userContent += `- Do NOT mention other commenters (e.g., "I agree with u/OtherUser")\n`;
+          userContent += `- Do NOT summarize what other people said\n`;
+          userContent += `- Do NOT reply to the original post author\n`;
+          userContent += `- Do NOT write about unrelated topics or platforms\n`;
+          userContent += `- Do NOT say "great point" about someone else's comment\n\n`;
         } else {
           userContent += `INSTRUCTION: The user wants you to reply to a comment by Reddit user "u/${targetAuthor}".\n`;
           userContent += `Search the provided Reddit context above for a comment authored by "u/${targetAuthor}".\n`;
@@ -1106,7 +1114,7 @@ document.addEventListener('selectionchange', function() {
 
       userContent += `My request:\n${text}\n\n`;
       if (targetAuthor) {
-        userContent += `REMEMBER: Reply DIRECTLY to u/${targetAuthor}'s comment. If you cannot find their comment, say so. Do NOT invent content.`;
+        userContent += `REMEMBER: Reply DIRECTLY to u/${targetAuthor}'s comment. If you cannot find their comment, say so. Do NOT invent content. Do NOT mention other users.`;
       } else {
         userContent += `Please answer based ONLY on the text provided above.`;
       }
