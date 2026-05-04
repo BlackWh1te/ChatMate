@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
   const topbarMinimizeBtn = document.getElementById('topbar-minimize-btn');
   const grabTextBtn = document.getElementById('grab-text-btn');
+  const readPageBtn = document.getElementById('read-page-btn');
   const responsesEmpty = document.getElementById('responses-empty');
   const feedbackBar = document.getElementById('feedback-bar');
   const feedbackUp = document.getElementById('feedback-up');
@@ -314,19 +315,19 @@ document.addEventListener('DOMContentLoaded', function() {
     setStatus('offline', 'Not available');
   }
 
-  // Auto-read page when Reddit-specific tone is selected
-  templateSelect.addEventListener('change', async function() {
-    const templateId = this.value;
-    const customTemplates = currentSettings?.templates || [];
-    const template = [...BUILTIN_TEMPLATES, ...customTemplates].find(t => t.id === templateId);
-
-    if (template && template.reddit) {
-      // Reddit-specific tone selected: auto-read page if not already read
-      if (!storedPageText) {
-        await readPage();
-      }
-    }
-  });
+  // Read Page button - extract page content for context
+  if (readPageBtn) {
+    readPageBtn.addEventListener('click', async function() {
+      if (readPageBtn.disabled) return;
+      readPageBtn.disabled = true;
+      readPageBtn.classList.add('btn-reading');
+      readPageBtn.innerHTML = '<span>📖</span> Reading<span class="thinking-text"></span>';
+      await readPage();
+      readPageBtn.disabled = false;
+      readPageBtn.classList.remove('btn-reading');
+      readPageBtn.innerHTML = '<span>📖</span> Read Page';
+    });
+  }
 
   // Restore previous responses (persist across popup closes)
   if (storageAvailable()) {
@@ -552,12 +553,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     currentInput = text;
     currentTemplateId = templateSelect.value;
-
-    // Auto-read page if not already read (context is always on now)
-    if (!storedPageText) {
-      await readPage();
-    }
-
     await generateResponses(text, currentTemplateId);
   });
 
