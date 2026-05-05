@@ -2,6 +2,15 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.2] - 2026-05-05
+
+### Added
+- **Regenerate button** — quickly re-run generation with the same prompt and tone without retyping.
+- **Escape key to cancel** — press Escape during generation to immediately stop the AI reply.
+
+### Fixed
+- Regenerate and action buttons now properly enable/disable based on whether a response exists.
+
 ## [1.0.1] - 2026-05-05
 
 ### Added

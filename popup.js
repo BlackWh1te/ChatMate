@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const copyBtn = document.getElementById('copy-btn');
   const clearBtn = document.getElementById('clear-btn');
   const pasteBtn = document.getElementById('paste-btn');
+  const regenerateBtn = document.getElementById('regenerate-btn');
   const themeToggle = document.getElementById('theme-toggle');
   const statusBadge = document.getElementById('status-badge');
   const footerInfo = document.getElementById('footer-info');
@@ -463,6 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const hasContent = responseCards[activeVariant] && responseCards[activeVariant].textContent.length > 0;
     copyBtn.disabled = !hasContent;
     pasteBtn.disabled = !hasContent;
+    if (regenerateBtn) regenerateBtn.disabled = !hasContent;
   }
 
   // Extract comment author list from Reddit context text for preview
@@ -574,6 +576,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     await generateResponses(text, currentTemplateId);
+  });
+
+  // Escape key cancels ongoing generation
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isGenerating && abortController) {
+      abortController.abort();
+      resetGeneration();
+      showToast('Generation cancelled', 'info');
+    }
   });
 
   async function fetchPageContext(maxLength, skipPromoted) {
@@ -1048,6 +1059,22 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
+
+  // Regenerate button - re-run generation with same prompt and template
+  if (regenerateBtn) {
+    regenerateBtn.addEventListener('click', async function() {
+      if (isGenerating || !currentInput) {
+        showToast('Nothing to regenerate', 'info');
+        return;
+      }
+      // Clear responses but keep input and page context
+      responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+      showResponses(false);
+      resetFeedbackUI();
+      // Re-run generation with same prompt
+      await generateResponses(currentInput, currentTemplateId);
+    });
+  }
 
   // Clear button - remove all responses, storage, and page context
   clearBtn.addEventListener('click', function() {

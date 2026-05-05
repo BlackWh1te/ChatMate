@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatMate - Ollama AI Assistant",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Get AI help with your chat responses using local Ollama",
   "permissions": [
     "activeTab",
