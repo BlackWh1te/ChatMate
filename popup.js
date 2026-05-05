@@ -4,6 +4,12 @@ document.addEventListener('DOMContentLoaded', function() {
     return typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
   }
 
+  // Normalize Ollama URL to avoid double slashes
+  function normalizeOllamaUrl(url) {
+    if (!url) return url;
+    return url.replace(/\/$/, '');
+  }
+
   // DOM Elements
   const inputText = document.getElementById('input-text');
   const templateSelect = document.getElementById('template-select');
@@ -291,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { signal: controller.signal });
+      const res = await fetch(`${normalizeOllamaUrl(settings.ollamaUrl)}/api/tags`, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -463,6 +469,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // Check for pending text from context menu or keyboard shortcut (popup only)
   if (!isSidebarMode) {
     chrome.runtime.sendMessage({action: 'getPendingText'}, function(response) {
+      if (chrome.runtime.lastError) {
+        // Extension context invalidated or background unavailable — fall back to tab message
+        sendMessageToActiveTab({action: 'getSelectedText'}).then(function(tabResponse) {
+          if (tabResponse && tabResponse.text) {
+            inputText.value = tabResponse.text;
+          }
+        });
+        return;
+      }
       if (response && response.text) {
         inputText.value = response.text;
       } else {
@@ -939,7 +954,7 @@ document.addEventListener('DOMContentLoaded', function() {
       loadingText.innerHTML = 'Writing your reply<span class="thinking-text"></span>';
     }
 
-    const url = `${settings.ollamaUrl}/api/chat`;
+    const url = `${normalizeOllamaUrl(settings.ollamaUrl)}/api/chat`;
 
     const maxTokens = settings.maxTokens || 500;
     const messages = buildMessages(systemPrompt, prompt, pageContext, refContents, storedPageText, images);
@@ -1046,7 +1061,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     }
-    return fullText;
+    // Stream ended without explicit done flag — clean up and return
+    const cleaned = cleanResponse(fullText);
+    responseCards[index].textContent = cleaned;
+    updateActionButtons();
+    return cleaned;
   }
 
   // Clean up model response for copying
@@ -1209,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`${settings.ollamaUrl}/api/tags`, { signal: controller.signal });
+      const res = await fetch(`${normalizeOllamaUrl(settings.ollamaUrl)}/api/tags`, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (!res.ok) return [];
       const data = await res.json();

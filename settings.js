@@ -64,9 +64,14 @@ document.addEventListener('DOMContentLoaded', function() {
     themeToggle.title = theme === 'dark' ? 'Toggle light mode' : 'Toggle dark mode';
   }
 
-  chrome.storage.local.get(['theme'], function(result) {
-    applyTheme(result.theme || 'light');
-  });
+  try {
+    chrome.storage.local.get(['theme'], function(result) {
+      applyTheme(result.theme || 'light');
+    });
+  } catch (e) {
+    // Extension context invalidated — default to light
+    applyTheme('light');
+  }
 
   themeToggle.addEventListener('click', function() {
     const current = document.documentElement.getAttribute('data-theme') || 'light';
@@ -92,29 +97,33 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Load current settings
-  chrome.storage.local.get([
-    'ollamaUrl', 'modelName', 'templates', 'history',
-    'streamingEnabled', 'temperature', 'maxTokens'
-  ], function(result) {
-    ollamaUrlInput.value = result.ollamaUrl || '';
-    streamingToggle.checked = result.streamingEnabled !== false;
-    temperatureSlider.value = result.temperature || 0.7;
-    temperatureValue.textContent = temperatureSlider.value;
-    maxTokens.value = result.maxTokens || 500;
+  try {
+    chrome.storage.local.get([
+      'ollamaUrl', 'modelName', 'templates', 'history',
+      'streamingEnabled', 'temperature', 'maxTokens'
+    ], function(result) {
+      ollamaUrlInput.value = result.ollamaUrl || '';
+      streamingToggle.checked = result.streamingEnabled !== false;
+      temperatureSlider.value = result.temperature || 0.7;
+      temperatureValue.textContent = temperatureSlider.value;
+      maxTokens.value = result.maxTokens || 500;
 
-    // Populate model dropdown
-    populateModelSelect(result.modelName || '', result.models || []);
+      // Populate model dropdown
+      populateModelSelect(result.modelName || '', result.models || []);
 
-    // Display templates
-    displayTemplates(result.templates || []);
+      // Display templates
+      displayTemplates(result.templates || []);
 
-    // Display history
-    allHistory = result.history || [];
-    displayHistory(allHistory);
+      // Display history
+      allHistory = result.history || [];
+      displayHistory(allHistory);
 
-    // Display feedback
-    displayFeedback(result.feedbackHistory || []);
-  });
+      // Display feedback
+      displayFeedback(result.feedbackHistory || []);
+    });
+  } catch (e) {
+    // Extension context invalidated — leave defaults
+  }
 
   // Find models from Ollama
   detectModelsBtn.addEventListener('click', async function() {
@@ -130,7 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(`${url}/api/tags`, { signal: controller.signal });
+      const normalizedUrl = url.replace(/\/$/, '');
+      const res = await fetch(`${normalizedUrl}/api/tags`, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -363,21 +373,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Export history
   exportHistoryBtn.addEventListener('click', function() {
-    chrome.storage.local.get(['history'], function(result) {
-      const data = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        history: result.history || []
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `chatmate-history-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showSuccess('History exported!');
-    });
+    try {
+      chrome.storage.local.get(['history'], function(result) {
+        const data = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          history: result.history || []
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chatmate-history-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showSuccess('History exported!');
+      });
+    } catch (e) {
+      showError('Extension context invalidated');
+    }
   });
 
   // Import history
@@ -397,27 +411,35 @@ document.addEventListener('DOMContentLoaded', function() {
           throw new Error('Invalid file format');
         }
 
-        chrome.storage.local.get(['history'], function(result) {
-          const existing = result.history || [];
-          const merged = [...data.history, ...existing];
-          // Remove duplicates based on timestamp
-          const seen = new Set();
-          const unique = merged.filter(item => {
-            const key = item.timestamp + (item.input || '').slice(0, 50);
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
+        try {
+          chrome.storage.local.get(['history'], function(result) {
+            try {
+              const existing = result.history || [];
+              const merged = [...data.history, ...existing];
+              // Remove duplicates based on timestamp
+              const seen = new Set();
+              const unique = merged.filter(item => {
+                const key = item.timestamp + (item.input || '').slice(0, 50);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
 
-          // Keep last 200 entries
-          const trimmed = unique.slice(0, 200);
+              // Keep last 200 entries
+              const trimmed = unique.slice(0, 200);
 
-          chrome.storage.local.set({ history: trimmed }, function() {
-            allHistory = trimmed;
-            displayHistory(trimmed);
-            showSuccess(`Imported ${data.history.length} entries!`);
+              chrome.storage.local.set({ history: trimmed }, function() {
+                allHistory = trimmed;
+                displayHistory(trimmed);
+                showSuccess(`Imported ${data.history.length} entries!`);
+              });
+            } catch (e) {
+              showError('Extension context invalidated');
+            }
           });
-        });
+        } catch (e) {
+          showError('Extension context invalidated');
+        }
       } catch (err) {
         showError('Failed to import: ' + err.message);
       }

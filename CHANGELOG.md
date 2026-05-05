@@ -2,6 +2,16 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.7] - 2026-05-05
+
+### Fixed
+- **Trailing slash in Ollama URL** — entering an Ollama URL with a trailing slash (e.g. `http://localhost:11434/`) no longer creates broken API URLs like `//api/chat`. All URL constructions in `popup.js`, `content.js`, `background.js`, and `settings.js` now normalize trailing slashes before use.
+- **Stream cleanup on incomplete response** — if the Ollama stream ends without an explicit `done` flag, the response is now properly cleaned (dedented, whitespace normalized) and action buttons are enabled, instead of leaving raw text and disabled buttons.
+- **chrome.runtime.sendMessage lastError** — the popup now gracefully handles `chrome.runtime.lastError` when querying pending text from the background service worker, falling back to tab messaging instead of throwing an uncaught error.
+- **Contenteditable paste reliability** — replaced deprecated `document.execCommand('insertText')` with modern Range/Selection API insertion in `content.js`. Pasting into rich-text editors is now more reliable across sites.
+- **Selection start fallback** — `element.selectionStart || element.value.length` changed to use nullish coalescing (`??`) so a cursor position of `0` (start of input) is respected instead of jumping to the end.
+- **Defensive storage access in settings page** — wrapped unprotected `chrome.storage.local.get` calls for theme loading, settings loading, history export, and history import in `settings.js` with try-catch. Prevents crashes if the extension is reloaded while the settings page is open.
+
 ## [1.0.6] - 2026-05-05
 
 ### Improved

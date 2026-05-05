@@ -107,7 +107,8 @@ async function detectModelsFromBackground(url) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`${url}/api/tags`, { signal: controller.signal });
+    const normalizedUrl = (url || '').replace(/\/$/, '');
+    const res = await fetch(`${normalizedUrl}/api/tags`, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();

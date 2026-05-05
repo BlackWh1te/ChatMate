@@ -607,17 +607,32 @@ function insertIntoElement(element, text) {
   if (element.isContentEditable) {
     element.focus();
     const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    range.collapse(false);
+    let range;
+    if (selection.rangeCount > 0) {
+      range = selection.getRangeAt(0);
+      // Ensure the range is inside the target element
+      if (!element.contains(range.commonAncestorContainer)) {
+        range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+      }
+    } else {
+      range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+    }
+    range.deleteContents();
+    const textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
-    document.execCommand('insertText', false, text);
     element.dispatchEvent(new InputEvent('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
   } else if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
-    const start = element.selectionStart || element.value.length;
-    const end = element.selectionEnd || element.value.length;
+    const start = element.selectionStart ?? element.value.length;
+    const end = element.selectionEnd ?? element.value.length;
     const value = element.value;
     element.value = value.substring(0, start) + text + value.substring(end);
     element.selectionStart = element.selectionEnd = start + text.length;
@@ -1150,7 +1165,8 @@ document.addEventListener('selectionchange', function() {
       ];
 
       try {
-        const res = await fetch(`${fallbackSettings.ollamaUrl}/api/chat`, {
+        const normalizedUrl = (fallbackSettings.ollamaUrl || '').replace(/\/$/, '');
+        const res = await fetch(`${normalizedUrl}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
