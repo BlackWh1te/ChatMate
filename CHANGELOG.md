@@ -2,6 +2,11 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.5] - 2026-05-05
+
+### Added
+- **Ctrl+Enter (Cmd+Enter on Mac) to generate** — press `Ctrl+Enter` from the message textarea to trigger **Generate Reply** without leaving the keyboard. Works for both starting generation and cancelling an in-progress one.
+
 ## [1.0.4] - 2026-05-05
 
 ### Fixed

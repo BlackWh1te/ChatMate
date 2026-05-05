@@ -601,6 +601,16 @@ document.addEventListener('DOMContentLoaded', function() {
     await generateResponses(text, currentTemplateId);
   });
 
+  // Ctrl+Enter (or Cmd+Enter on Mac) triggers generation from the textarea
+  if (inputText) {
+    inputText.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        generateBtn.click();
+      }
+    });
+  }
+
   // Escape key cancels ongoing generation
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && isGenerating && abortController) {
