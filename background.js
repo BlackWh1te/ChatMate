@@ -51,7 +51,12 @@ chrome.commands.onCommand.addListener(function(command) {
   if (command === 'generate-response') {
     // Get selected text from active tab
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs || !tabs[0] || !tabs[0].id) return;
       chrome.tabs.sendMessage(tabs[0].id, {action: 'getSelectedText'}, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('[ChatMate] sendMessage failed:', chrome.runtime.lastError.message);
+          return;
+        }
         if (response && response.text) {
           try {
             chrome.storage.local.set({pendingText: response.text}, function() {

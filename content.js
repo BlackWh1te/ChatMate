@@ -598,7 +598,9 @@ function insertTextIntoActiveElement(text) {
 
 function isVisible(el) {
   const rect = el.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight;
+  // Element has dimensions and at least partially intersects the viewport
+  return rect.width > 0 && rect.height > 0 &&
+    rect.bottom > 0 && rect.top < window.innerHeight;
 }
 
 function insertIntoElement(element, text) {
@@ -1218,6 +1220,12 @@ document.addEventListener('selectionchange', function() {
     const msg = event.data;
     if (!msg || !msg._chatmate) return;
 
+    // Handle toggleSidebar action
+    if (msg.action === 'toggleSidebar') {
+      expanded ? minimizeSidebar() : expandSidebar();
+      return;
+    }
+
     let result = null;
     if (msg.action === 'getSelectedText') {
       result = {text: window.getSelection().toString().trim()};
@@ -1229,16 +1237,6 @@ document.addEventListener('selectionchange', function() {
 
     if (event.source && event.source.postMessage) {
       event.source.postMessage({ _chatmateResponse: true, _id: msg._id, result: result }, '*');
-    }
-  });
-
-  window.addEventListener('message', function(event) {
-    if (useShadowDOM) return;
-    if (!iframe || !iframe.contentWindow) return;
-    if (event.source !== iframe.contentWindow) return;
-    const msg = event.data;
-    if (msg && msg.action === 'toggleSidebar') {
-      expanded ? minimizeSidebar() : expandSidebar();
     }
   });
 })();

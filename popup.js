@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       return new Promise((resolve) => {
         const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
         img.onload = function() {
           let w = img.naturalWidth;
           let h = img.naturalHeight;
@@ -133,10 +134,14 @@ document.addEventListener('DOMContentLoaded', function() {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, w, h);
           const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          URL.revokeObjectURL(objectUrl);
           resolve(dataUrl.replace(/^data:image\/jpeg;base64,/, ''));
         };
-        img.onerror = () => resolve(null);
-        img.src = URL.createObjectURL(blob);
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(null);
+        };
+        img.src = objectUrl;
       });
     } catch (e) {
       return null;
@@ -152,8 +157,12 @@ document.addEventListener('DOMContentLoaded', function() {
       if (img.base64) {
         results.push(img.base64);
       } else if (img.url) {
-        const fetched = await fetchImageAsBase64(img.url);
-        if (fetched) results.push(fetched);
+        try {
+          const fetched = await fetchImageAsBase64(img.url);
+          if (fetched) results.push(fetched);
+        } catch (e) {
+          // Image fetch failed — skip it
+        }
       }
     }
     return results;
@@ -180,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.top.postMessage({...message, _chatmate: true, _id: requestId}, '*');
       } else {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (!tabs || !tabs[0]) { resolve(null); return; }
+          if (!tabs || !tabs[0] || !tabs[0].id) { resolve(null); return; }
           chrome.tabs.sendMessage(tabs[0].id, message, function(response) {
             if (chrome.runtime.lastError) {
               resolve(null);

@@ -2,6 +2,16 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.4] - 2026-05-05
+
+### Fixed
+- **Merged duplicate message listeners** in `content.js` — the sidebar iframe was registering two separate `window.addEventListener('message')` handlers, causing redundant checks and potential race conditions.
+- **Crash on chrome:// pages and special tabs** — `popup.js` and `background.js` now validate `tabs[0].id` exists before calling `chrome.tabs.sendMessage`, preventing crashes when the active tab is a system page or has no accessible ID.
+- **Unchecked `chrome.runtime.lastError` in keyboard shortcut handler** — background service worker now logs and gracefully handles cases where the content script isn't loaded on the target tab.
+- **Blob URL memory leak** — `fetchImageAsBase64()` in `popup.js` now revokes object URLs after image load or error, preventing memory accumulation when processing page images for vision models.
+- **Defensive image resolution** — `resolveImages()` now catches individual image fetch failures instead of letting one bad URL break the entire batch.
+- **`isVisible()` too strict** — content script paste helper now considers elements partially visible in the viewport (not just fully in-view), making paste work on more sites where inputs are near scroll boundaries.
+
 ## [1.0.3] - 2026-05-05
 
 ### Fixed
