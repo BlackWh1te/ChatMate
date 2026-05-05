@@ -10,6 +10,69 @@ document.addEventListener('DOMContentLoaded', function() {
     return url.replace(/\/$/, '');
   }
 
+  // Lightweight Markdown parser with XSS sanitization
+  function parseMarkdown(text) {
+    if (!text) return '';
+    let html = text;
+
+    // Escape HTML entities first (XSS protection)
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Code blocks (```code```)
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code) {
+      return `<pre><code class="code-block">${code.trim()}</code></pre>`;
+    });
+
+    // Inline code (`code`)
+    html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+    // Bold (**text** or __text__)
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+    // Italic (*text* or _text_)
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+    // Strikethrough (~~text~~)
+    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+    // Blockquotes (> text)
+    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    // Unordered lists (- item or * item)
+    html = html.replace(/^[\s]*[-*] (.+)$/gm, '<li>$1</li>');
+    // Wrap consecutive <li> in <ul>
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+      return `<ul>${match}</ul>`;
+    });
+
+    // Ordered lists (1. item)
+    html = html.replace(/^[\s]*\d+\. (.+)$/gm, '<li>$1</li>');
+    // Wrap consecutive <li> from ordered lists in <ol>
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+      // Check if this looks like an ordered list (simple heuristic: if it contains numbers at start)
+      const lines = match.split('\n');
+      const hasNumbers = lines.some(line => /^\s*\d+/.test(line));
+      return hasNumbers ? `<ol>${match}</ol>` : match;
+    });
+
+    // Links [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // Line breaks to <br> (but not inside pre/code)
+    html = html.replace(/\n/g, '<br>');
+    // Remove <br> inside pre blocks
+    html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, function(match, content) {
+      return `<pre>${content.replace(/<br>/g, '\n')}</pre>`;
+    });
+
+    return html;
+  }
+
   // DOM Elements
   const inputText = document.getElementById('input-text');
   const templateSelect = document.getElementById('template-select');
@@ -386,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
           let hasContent = false;
           saved.forEach((item, i) => {
             if (i < responseCards.length && item.text) {
-              responseCards[i].textContent = item.text;
+              responseCards[i].innerHTML = parseMarkdown(cleanResponse(item.text));
               if (!item.hasError) hasContent = true;
             }
           });
@@ -435,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function saveFeedback(variantIndex, rating) {
+    // Get plain text from HTML for feedback storage
     const text = responseCards[variantIndex]?.textContent || '';
     const input = currentInput || '';
     const pageUrl = currentPageContext?.url || '';
@@ -517,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updateActionButtons() {
-    const hasContent = responseCards[activeVariant] && responseCards[activeVariant].textContent.length > 0;
+    const hasContent = responseCards[activeVariant] && responseCards[activeVariant].textContent.trim().length > 0;
     copyBtn.disabled = !hasContent;
     pasteBtn.disabled = !hasContent;
     if (regenerateBtn) regenerateBtn.disabled = !hasContent;
@@ -846,7 +910,7 @@ document.addEventListener('DOMContentLoaded', function() {
     generateBtn.style.background = 'var(--danger)';
     hideError();
     showResponses(false);
-    responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+    responseCards.forEach(c => { c.textContent = ''; c.innerHTML = ''; c.classList.remove('active'); });
     loading.classList.add('show');
 
     try {
@@ -901,7 +965,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Show result
       if (result) {
-        responseCards[0].textContent = cleanResponse(result);
+        const cleaned = cleanResponse(result);
+        responseCards[0].innerHTML = parseMarkdown(cleaned);
         showResponses(true);
         setActiveVariant(0);
         await updateModelInfo(settings, currentPageContext);
@@ -910,7 +975,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
           if (storageAvailable()) {
             const responsesToSave = [{
-              text: responseCards[0].textContent,
+              text: cleaned,
               hasError: false
             }];
             chrome.storage.local.set({
@@ -924,9 +989,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Save to history
-        saveToHistory(text, cleanResponse(result), settings.modelName);
+        saveToHistory(text, cleaned, settings.modelName);
       } else {
-        responseCards[0].textContent = 'Failed to generate response';
+        responseCards[0].innerHTML = 'Failed to generate response';
         showResponses(true);
       }
     } catch (err) {
@@ -1047,12 +1112,14 @@ document.addEventListener('DOMContentLoaded', function() {
           const text = data.message?.content || data.response || '';
           if (text) {
             fullText += text;
+            // During streaming: use textContent for performance
             responseCards[index].textContent = fullText;
             responseCards[index].scrollTop = responseCards[index].scrollHeight;
           }
           if (data.done) {
             const cleaned = cleanResponse(fullText);
-            responseCards[index].textContent = cleaned;
+            // After streaming ends: render Markdown
+            responseCards[index].innerHTML = parseMarkdown(cleaned);
             updateActionButtons();
             return cleaned;
           }
@@ -1061,9 +1128,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     }
-    // Stream ended without explicit done flag — clean up and return
+    // Stream ended without explicit done flag — clean up and render Markdown
     const cleaned = cleanResponse(fullText);
-    responseCards[index].textContent = cleaned;
+    responseCards[index].innerHTML = parseMarkdown(cleaned);
     updateActionButtons();
     return cleaned;
   }
@@ -1138,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       // Clear responses but keep input and page context
-      responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+      responseCards.forEach(c => { c.textContent = ''; c.innerHTML = ''; c.classList.remove('active'); });
       showResponses(false);
       resetFeedbackUI();
       // Re-run generation with same prompt
@@ -1148,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Clear button - remove all responses, storage, and page context
   clearBtn.addEventListener('click', function() {
-    responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
+    responseCards.forEach(c => { c.textContent = ''; c.innerHTML = ''; c.classList.remove('active'); });
     showResponses(false);
     if (storageAvailable()) {
       try {

@@ -2,6 +2,17 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.8] - 2026-05-05
+
+### Added
+- **Markdown rendering** — AI responses now render as formatted HTML instead of plain text. Supports bold (**text**), italic (*text*), inline code (`code`), code blocks (```code```), lists, blockquotes, links, and strikethrough. Responses are much more readable and professional-looking.
+- **XSS sanitization** — the Markdown parser escapes HTML entities before rendering, preventing any potential injection issues from AI output.
+
+### Improved
+- **Streaming performance** — during streaming, responses display as plain text for instant feedback, then render to Markdown at completion. This keeps streaming fast while providing beautiful formatting at the end.
+- **Code block styling** — code blocks now have proper monospace font, background color, borders, and scrollbars for long code snippets.
+- **Link rendering** — URLs in responses are now clickable and open in a new tab with security attributes.
+
 ## [1.0.7] - 2026-05-05
 
 ### Fixed
