@@ -2,6 +2,12 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.3] - 2026-05-05
+
+### Fixed
+- Wrapped all remaining unprotected `chrome.storage.local` calls in `popup.js` with try-catch blocks. Prevents "Extension context invalidated" crashes when the popup is open during extension reload or update.
+- Hardened `getSettings()` and `getTemplates()` to resolve gracefully instead of throwing when storage is unavailable.
+
 ## [1.0.2] - 2026-05-05
 
 ### Added

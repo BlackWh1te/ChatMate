@@ -201,9 +201,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   if (storageAvailable()) {
-    chrome.storage.local.get(['theme'], function(result) {
-      applyTheme(result.theme || 'light');
-    });
+    try {
+      chrome.storage.local.get(['theme'], function(result) {
+        applyTheme(result.theme || 'light');
+      });
+    } catch (e) {
+      applyTheme('light');
+    }
   } else {
     applyTheme('light');
   }
@@ -282,38 +286,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Load settings, templates, check connection
   if (storageAvailable()) {
-    chrome.storage.local.get([
-      'ollamaUrl', 'modelName', 'templates', 'streamingEnabled',
-      'temperature', 'maxTokens'
-    ], function(result) {
-      currentSettings = {
-        ollamaUrl: result.ollamaUrl,
-        modelName: result.modelName || '',
-        streamingEnabled: result.streamingEnabled !== false,
-        temperature: result.temperature || 0.7,
-        maxTokens: result.maxTokens || 500
-      };
+    try {
+      chrome.storage.local.get([
+        'ollamaUrl', 'modelName', 'templates', 'streamingEnabled',
+        'temperature', 'maxTokens'
+      ], function(result) {
+        currentSettings = {
+          ollamaUrl: result.ollamaUrl,
+          modelName: result.modelName || '',
+          streamingEnabled: result.streamingEnabled !== false,
+          temperature: result.temperature || 0.7,
+          maxTokens: result.maxTokens || 500
+        };
 
-      if (!result.ollamaUrl) {
-        showError('Open Settings and connect to your AI');
-        generateBtn.disabled = true;
-        setStatus('offline', 'Not configured');
-      } else {
-        checkConnection();
-      }
+        if (!result.ollamaUrl) {
+          showError('Open Settings and connect to your AI');
+          generateBtn.disabled = true;
+          setStatus('offline', 'Not configured');
+        } else {
+          checkConnection();
+        }
 
-      // Load built-in templates first, then custom ones
-      const customTemplates = result.templates || [];
-      [...BUILTIN_TEMPLATES, ...customTemplates].forEach(template => {
-        const option = document.createElement('option');
-        option.value = template.id;
-        option.textContent = template.name + (template.reddit ? ' 🐱' : '');
-        templateSelect.appendChild(option);
+        // Load built-in templates first, then custom ones
+        const customTemplates = result.templates || [];
+        [...BUILTIN_TEMPLATES, ...customTemplates].forEach(template => {
+          const option = document.createElement('option');
+          option.value = template.id;
+          option.textContent = template.name + (template.reddit ? ' 🐱' : '');
+          templateSelect.appendChild(option);
       });
 
       // Update variant buttons visibility (always 1 now)
       updateVariantButtons(1);
     });
+    } catch (e) {
+      showError('Extension context lost. Please reload the extension.');
+      generateBtn.disabled = true;
+      setStatus('offline', 'Not available');
+    }
   } else {
     showError('Extension context lost. Please reload the extension.');
     generateBtn.disabled = true;
@@ -336,27 +346,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Restore previous responses (persist across popup closes)
   if (storageAvailable()) {
-    chrome.storage.local.get(['lastResponses', 'lastActiveVariant', 'lastInput'], function(result) {
-      if (result.lastResponses && result.lastResponses.length > 0) {
-        const saved = result.lastResponses;
-        let hasContent = false;
-        saved.forEach((item, i) => {
-          if (i < responseCards.length && item.text) {
-            responseCards[i].textContent = item.text;
-            if (!item.hasError) hasContent = true;
+    try {
+      chrome.storage.local.get(['lastResponses', 'lastActiveVariant', 'lastInput'], function(result) {
+        if (result.lastResponses && result.lastResponses.length > 0) {
+          const saved = result.lastResponses;
+          let hasContent = false;
+          saved.forEach((item, i) => {
+            if (i < responseCards.length && item.text) {
+              responseCards[i].textContent = item.text;
+              if (!item.hasError) hasContent = true;
+            }
+          });
+          if (hasContent) {
+            showResponses(true);
+            const active = result.lastActiveVariant || 0;
+            setActiveVariant(active);
+            updateActionButtons();
           }
-        });
-        if (hasContent) {
-          showResponses(true);
-          const active = result.lastActiveVariant || 0;
-          setActiveVariant(active);
-          updateActionButtons();
+          if (result.lastInput) {
+            currentInput = result.lastInput;
+          }
         }
-        if (result.lastInput) {
-          currentInput = result.lastInput;
-        }
-      }
-    });
+      });
+    } catch (e) {
+      // Extension context invalidated - ignore
+    }
   }
 
   function updateVariantButtons(count) {
@@ -1081,7 +1095,11 @@ document.addEventListener('DOMContentLoaded', function() {
     responseCards.forEach(c => { c.textContent = ''; c.classList.remove('active'); });
     showResponses(false);
     if (storageAvailable()) {
-      chrome.storage.local.remove(['lastResponses', 'lastActiveVariant', 'lastInput']);
+      try {
+        chrome.storage.local.remove(['lastResponses', 'lastActiveVariant', 'lastInput']);
+      } catch (e) {
+        // Extension context invalidated - ignore
+      }
     }
     // Reset page context
     storedPageText = null;
@@ -1178,24 +1196,32 @@ document.addEventListener('DOMContentLoaded', function() {
       // Empty or missing — pick first available and persist it
       if (!savedName) {
         const pick = available[0];
-        if (storageAvailable()) chrome.storage.local.set({ modelName: pick });
+        if (storageAvailable()) {
+          try { chrome.storage.local.set({ modelName: pick }); } catch (e) {}
+        }
         return pick;
       }
       // Partial match (e.g. saved "llama3" matches "llama3.1:8b")
       const partial = available.find(a => a.toLowerCase().startsWith(savedName.toLowerCase()));
       if (partial) {
-        if (storageAvailable()) chrome.storage.local.set({ modelName: partial });
+        if (storageAvailable()) {
+          try { chrome.storage.local.set({ modelName: partial }); } catch (e) {}
+        }
         return partial;
       }
       // Fuzzy: saved name appears anywhere in available name
       const fuzzy = available.find(a => a.toLowerCase().includes(savedName.toLowerCase()));
       if (fuzzy) {
-        if (storageAvailable()) chrome.storage.local.set({ modelName: fuzzy });
+        if (storageAvailable()) {
+          try { chrome.storage.local.set({ modelName: fuzzy }); } catch (e) {}
+        }
         return fuzzy;
       }
       // Fallback to first available
       const pick = available[0];
-      if (storageAvailable()) chrome.storage.local.set({ modelName: pick });
+      if (storageAvailable()) {
+        try { chrome.storage.local.set({ modelName: pick }); } catch (e) {}
+      }
       return pick;
     } catch (e) {
       return savedName;
@@ -1214,23 +1240,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         return;
       }
-      chrome.storage.local.get([
-        'ollamaUrl', 'modelName', 'streamingEnabled',
-        'temperature', 'maxTokens'
-      ], async function(result) {
-        const base = {
-          ollamaUrl: result.ollamaUrl,
-          modelName: result.modelName || '',
-          streamingEnabled: result.streamingEnabled !== false,
-          temperature: result.temperature || 0.7,
-          maxTokens: result.maxTokens || 500
-        };
-        // Auto-resolve model if missing / stale
-        if (base.ollamaUrl) {
-          base.modelName = await resolveModelName(base.ollamaUrl, base.modelName);
-        }
-        resolve(base);
-      });
+      try {
+        chrome.storage.local.get([
+          'ollamaUrl', 'modelName', 'streamingEnabled',
+          'temperature', 'maxTokens'
+        ], async function(result) {
+          const base = {
+            ollamaUrl: result.ollamaUrl,
+            modelName: result.modelName || '',
+            streamingEnabled: result.streamingEnabled !== false,
+            temperature: result.temperature || 0.7,
+            maxTokens: result.maxTokens || 500
+          };
+          // Auto-resolve model if missing / stale
+          if (base.ollamaUrl) {
+            base.modelName = await resolveModelName(base.ollamaUrl, base.modelName);
+          }
+          resolve(base);
+        });
+      } catch (e) {
+        resolve({
+          ollamaUrl: '',
+          modelName: '',
+          streamingEnabled: true,
+          temperature: 0.7,
+          maxTokens: 500
+        });
+      }
     });
   }
 
@@ -1240,10 +1276,14 @@ document.addEventListener('DOMContentLoaded', function() {
         resolve([...BUILTIN_TEMPLATES]);
         return;
       }
-      chrome.storage.local.get(['templates'], function(result) {
-        const custom = result.templates || [];
-        resolve([...BUILTIN_TEMPLATES, ...custom]);
-      });
+      try {
+        chrome.storage.local.get(['templates'], function(result) {
+          const custom = result.templates || [];
+          resolve([...BUILTIN_TEMPLATES, ...custom]);
+        });
+      } catch (e) {
+        resolve([...BUILTIN_TEMPLATES]);
+      }
     });
   }
 
