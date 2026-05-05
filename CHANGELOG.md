@@ -2,6 +2,11 @@
 
 All notable changes to ChatMate will be documented in this file.
 
+## [1.0.6] - 2026-05-05
+
+### Improved
+- **Connection status cache** — the popup no longer flashes "Checking…" every time it opens. The last known Ollama status is cached for 10 seconds and shown instantly while a silent background refresh verifies it. Much snappier feel when you open the popup repeatedly.
+
 ## [1.0.5] - 2026-05-05
 
 ### Added

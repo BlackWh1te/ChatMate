@@ -48,6 +48,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let storedPageText = null;
   let storedPageImages = null;
 
+  // Connection status cache (avoids "Checking..." flash on every popup open)
+  const STATUS_CACHE_TTL_MS = 10000;
+  let connectionStatusCache = { type: null, text: '', timestamp: 0 };
+
   // Anti-hallucination guard: every prompt ends with this instruction
   const ON_TOPIC_GUARD = 'CRITICAL RULES: 1) You MUST use ONLY the provided text context above. Do NOT invent topics, facts, or platforms not in the text. 2) If the user asks you to reply to a specific Reddit user or comment, you MUST reply DIRECTLY to that comment and ONLY that comment. Do NOT reply to other commenters, do NOT summarize other people\'s comments, do NOT say "I agree with [other commenter]", do NOT mention other users at all. 3) Do NOT reply about Slack, Discord, email etiquette, social media, or other platforms unless the context EXPLICITLY mentions them. 4) If the context does not contain what the user is asking about, say so — do NOT guess or hallucinate. 5) Keep your reply focused and relevant to the specific comment you are replying to.';
 
@@ -269,10 +273,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const settings = await getSettings();
     if (!settings.ollamaUrl) {
       setStatus('offline', 'Not configured');
+      connectionStatusCache = { type: 'offline', text: 'Not configured', timestamp: Date.now() };
       return;
     }
 
-    setStatus('checking', 'Checking...');
+    const now = Date.now();
+    const cacheAge = now - connectionStatusCache.timestamp;
+    const cacheValid = connectionStatusCache.type && cacheAge < STATUS_CACHE_TTL_MS;
+
+    // Show cached status immediately to avoid "Checking..." flash
+    if (cacheValid) {
+      setStatus(connectionStatusCache.type, connectionStatusCache.text);
+    } else {
+      setStatus('checking', 'Checking...');
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -282,9 +297,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const data = await res.json();
       const modelCount = data.models ? data.models.length : 0;
       const vision = isVisionModel(settings.modelName) ? ' 👁️' : '';
-      setStatus('online', `${modelCount} model${modelCount !== 1 ? 's' : ''}${vision}`);
+      const statusText = `${modelCount} model${modelCount !== 1 ? 's' : ''}${vision}`;
+      setStatus('online', statusText);
+      connectionStatusCache = { type: 'online', text: statusText, timestamp: Date.now() };
     } catch (err) {
       setStatus('offline', 'Offline');
+      connectionStatusCache = { type: 'offline', text: 'Offline', timestamp: Date.now() };
     }
   }
 
